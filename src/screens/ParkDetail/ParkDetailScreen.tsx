@@ -84,6 +84,15 @@ function CheckIcon({ color }: { color: string }) {
   );
 }
 
+function MoonStarIcon() {
+  return (
+    <Svg width={14} height={14} viewBox="0 0 24 24">
+      <Path d="M15.5 3.5a8.5 8.5 0 1 0 5 15.4A7 7 0 0 1 15.5 3.5z" fill={colors.skyDark} />
+      <Path d="M19 3l.7 1.6 1.6.7-1.6.7L19 7.6l-.7-1.6-1.6-.7 1.6-.7z" fill={colors.skyDark} />
+    </Svg>
+  );
+}
+
 function TreeIcon({ size = 20 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 20 20">
@@ -139,6 +148,12 @@ export default function ParkDetailScreen({ route, navigation }: Props) {
             <View style={styles.titleBlock}>
               <Text style={styles.parkName}>{park.name}</Text>
               <Text style={styles.parkType}>National Park</Text>
+              {park.darkSkyPark && (
+                <View style={styles.darkSkyChip}>
+                  <MoonStarIcon />
+                  <Text style={styles.darkSkyText}>International Dark Sky Park</Text>
+                </View>
+              )}
             </View>
             <StatusBadge status={park.status} detail />
           </View>
@@ -256,14 +271,16 @@ export default function ParkDetailScreen({ route, navigation }: Props) {
         <PrimaryButton
           label={park.status === 'visited' ? 'LOG ANOTHER TRIP' : 'LOG A TRIP'}
           onPress={() =>
-            requireAccount() && (navigation as any).navigate('LogTripForm', { parkId: park.id, initialTripType: 'logged' })
+            requireAccount({ type: 'tripForm', parkId: park.id, tripType: 'logged' }) &&
+            (navigation as any).navigate('LogTripForm', { parkId: park.id, initialTripType: 'logged' })
           }
           style={styles.ctaBtn}
         />
         <SecondaryButton
           label="PLAN A TRIP"
           onPress={() =>
-            requireAccount() && (navigation as any).navigate('LogTripForm', { parkId: park.id, initialTripType: 'planned' })
+            requireAccount({ type: 'tripForm', parkId: park.id, tripType: 'planned' }) &&
+            (navigation as any).navigate('LogTripForm', { parkId: park.id, initialTripType: 'planned' })
           }
           style={styles.ctaBtn}
         />
@@ -297,6 +314,18 @@ const styles = StyleSheet.create({
   titleBlock: { flex: 1, gap: 4 },
   parkName: { ...typography.h2, color: colors.textPrimary },
   parkType: { ...typography.body, color: colors.textSecondary },
+  darkSkyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: colors.skyTint,
+    borderRadius: radius.full,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.md,
+    marginTop: 2,
+  },
+  darkSkyText: { ...typography.labelBold, fontSize: 12, color: colors.skyDark },
 
   description: { ...typography.body, color: colors.textSecondary, lineHeight: 22 },
 

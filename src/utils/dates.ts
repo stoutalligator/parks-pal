@@ -7,13 +7,30 @@ export function parseLocalDate(dateStr: string): Date {
   return new Date(year, month - 1, day);
 }
 
-export function addDays(dateStr: string, days: number): string {
-  const d = parseLocalDate(dateStr);
-  d.setDate(d.getDate() + days);
+function toDateString(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+export function addDays(dateStr: string, days: number): string {
+  const d = parseLocalDate(dateStr);
+  d.setDate(d.getDate() + days);
+  return toDateString(d);
+}
+
+export function todayDateString(): string {
+  return toDateString(new Date());
+}
+
+// Whole days from today to the date — negative once it has passed.
+export function daysUntil(dateStr: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = parseLocalDate(dateStr);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 export function dayCountBetween(start: string, end: string): number {
@@ -38,11 +55,7 @@ export function formatDateRange(start: string, end: string): string {
 // a planned trip whose date quietly passed without being marked completed,
 // since nothing auto-converts a plan to logged.
 export function daysUntilLabel(dateStr: string): string {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = parseLocalDate(dateStr);
-  target.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const diffDays = daysUntil(dateStr);
 
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Tomorrow';

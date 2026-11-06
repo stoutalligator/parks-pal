@@ -261,6 +261,7 @@ create unique index content_reports_one_open_per_reason
 -- change like turning on a newly designated park reaches everyone without an
 -- app update. Readable by anyone; changed only from the dashboard/service role.
 --   enabled_upcoming_parks: JSON array of UPCOMING_PARKS ids to show, e.g. ["chiricahua"]
+--   event_notice: the Home-screen notice card, or null (fields: migrations/2026-11-06-event-notice.sql)
 create table public.app_config (
   key text primary key,
   value jsonb not null,
@@ -269,6 +270,7 @@ create table public.app_config (
 
 insert into public.app_config (key, value) values ('enabled_upcoming_parks', '[]'::jsonb);
 insert into public.app_config (key, value) values ('nps_alerts_synced_at', 'null'::jsonb);
+insert into public.app_config (key, value) values ('event_notice', 'null'::jsonb);
 
 -- Live NPS alerts, copied verbatim from the NPS API every 30 minutes by the
 -- sync-nps-alerts Edge Function (scheduled with pg_cron — see

@@ -8,12 +8,17 @@ export const colors = {
   // Brand / Primary
   primary: '#2D5016',
   primaryLight: '#3D6B20',
+  primaryTint: '#EEF3E8',
 
   // Accents
   sage: '#6B8C5A',
   sky: '#A8C5D4',
+  skyTint: '#EEF4F7',
+  // Readable-as-text shades of sky/orange (the base accents are too light for small text).
+  skyDark: '#2F5A6E',
   tan: '#C9A96E',
   orange: '#D4845A',
+  orangeDark: '#A35A33',
   rose: '#C4847A',
   brown: '#8B6340',
   brownDark: '#5C4028',

@@ -204,9 +204,9 @@ const GOALS: { label: ExplorerGoal; render: (color: string) => React.ReactElemen
   },
 ];
 
-export default function AuthScreen({ navigation }: Props) {
+export default function AuthScreen({ navigation, route }: Props) {
   const { completeOnboarding, stats } = useApp();
-  const [mode, setMode] = useState<Mode>('Log In');
+  const [mode, setMode] = useState<Mode>(route.params?.mode ?? 'Log In');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

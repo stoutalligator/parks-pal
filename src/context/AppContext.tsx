@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
-import { ParkAlert, Park, Trip, TripType, TripTrailEntry, TripDayEntry, WeatherType, Badge, UserStats, UserProfile, ParkStatus, TripActivity, ProfileBackground, ProfileAvatar, Units, Trail, Animal, TrailDetail, AnimalDetail, ContentReportInput, TrailCompletionRow, AnimalSightingRow } from '@/types';
+import { EventNotice, ParkAlert, Park, Trip, TripType, TripTrailEntry, TripDayEntry, WeatherType, Badge, UserStats, UserProfile, ParkStatus, TripActivity, ProfileBackground, ProfileAvatar, Units, Trail, Animal, TrailDetail, AnimalDetail, ContentReportInput, TrailCompletionRow, AnimalSightingRow } from '@/types';
 import { ALL_PARKS, UPCOMING_PARKS, visibleParks } from '@/data/parks';
 import { ALL_BADGES } from '@/data/badges';
 import { BADGE_PROGRESS } from '@/data/badgeRules';
@@ -13,7 +13,14 @@ import { ALL_ANIMALS } from '@/data/animals';
 import { TRAIL_DETAILS } from '@/data/trailDetails';
 import { ANIMAL_DETAILS } from '@/data/animalDetails';
 import { fetchContentBundle } from '@/data/contentService';
-import { loadCachedEnabledUpcomingParks, fetchEnabledUpcomingParks } from '@/data/appConfig';
+import {
+  loadCachedEnabledUpcomingParks,
+  fetchEnabledUpcomingParks,
+  loadCachedEventNotice,
+  fetchEventNotice,
+  loadDismissedNotices,
+  saveDismissedNotices,
+} from '@/data/appConfig';
 import { loadCachedAlerts, fetchAlerts } from '@/data/npsAlerts';
 import { loadPendingTrips, savePendingTrips } from '@/data/offlineTrips';
 import { loadSnapshot, saveSnapshot, clearSnapshot, ParkStatusSnapshot, SnapshotPatch } from '@/data/localCache';
@@ -32,7 +39,7 @@ import {
   DescribeLookup,
   PendingChange,
 } from '@/data/outboxCore';
-import { addDays } from '@/utils/dates';
+import { addDays, todayDateString } from '@/utils/dates';
 import { supabase } from '@/lib/supabase';
 import { showToast } from '@/components/Toast';
 import { celebrateBadges } from '@/components/BadgeEarnedModal';
@@ -47,13 +54,24 @@ function reportError(action: string, error: unknown) {
   showToast(`Couldn't ${action}. Please try again.`, 'error');
 }
 
+const GUEST_MODE_KEY = 'parkpal.guestMode';
+
+// What a guest tapped before being asked to sign up, redone once they have —
+// so a heart tapped as a guest isn't lost to the sign-up detour.
+export type GuestAction =
+  | { type: 'favorite'; parkId: string }
+  | { type: 'status'; parkId: string; status: ParkStatus }
+  | { type: 'trail'; trailId: string; parkId: string; name: string }
+  | { type: 'tripForm'; parkId?: string; tripType: TripType }
+  | { type: 'tab'; tab: 'LogTrip' | 'TripsTab' | 'ProfileTab' };
+
 // Shown when a guest (browsing without an account) tries something that saves
 // to their account — browsing parks, trails, and animals never needs one.
 function promptForAccount() {
   const title = 'Create a free account';
   const message = 'Sign up to track the parks you visit, log trips, and earn badges.';
   const openAuth = () => {
-    if (navigationRef.isReady()) navigationRef.navigate('Auth');
+    if (navigationRef.isReady()) navigationRef.navigate('Auth', { mode: 'Sign Up' });
   };
   // Alert.alert is a no-op on react-native-web.
   if (Platform.OS === 'web') {
@@ -374,6 +392,9 @@ interface AppContextValue {
   /** Live NPS alerts (verbatim NPS content) and when they were last synced. */
   parkAlerts: ParkAlert[];
   alertsSyncedAt: string | null;
+  /** The remote Home-screen notice, if one is live and not dismissed on this device. */
+  eventNotice: EventNotice | null;
+  dismissEventNotice: (id: string) => void;
   trips: Trip[];
   badges: Badge[];
   userProfile: UserProfile;
@@ -401,8 +422,11 @@ interface AppContextValue {
   updateProfileAvatar: (avatar: ProfileAvatar) => void;
   updateUnits: (units: Units) => void;
   continueAsGuest: () => void;
-  /** True when signed in; otherwise prompts the guest to sign up and returns false. */
-  requireAccount: () => boolean;
+  /**
+   * True when signed in; otherwise prompts the guest to sign up and returns
+   * false. `action` is redone automatically if they sign up from that prompt.
+   */
+  requireAccount: (action?: GuestAction) => boolean;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   isTrailCompleted: (trailId: string) => boolean;
@@ -506,13 +530,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Guest mode ends once they sign in, so signing out later returns to Welcome.
   useEffect(() => {
-    if (session) setGuestMode(false);
+    if (!session) return;
+    setGuestMode(false);
+    AsyncStorage.removeItem(GUEST_MODE_KEY).catch(() => {});
   }, [session]);
 
-  const continueAsGuest = useCallback(() => setGuestMode(true), []);
+  const continueAsGuest = useCallback(() => {
+    setGuestMode(true);
+    AsyncStorage.setItem(GUEST_MODE_KEY, 'true').catch(() => {});
+  }, []);
 
-  const requireAccount = useCallback(() => {
+  const pendingGuestActionRef = useRef<GuestAction | null>(null);
+
+  const requireAccount = useCallback((action?: GuestAction) => {
     if (sessionRef.current) return true;
+    pendingGuestActionRef.current = action ?? null;
     promptForAccount();
     return false;
   }, []);
@@ -615,9 +647,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [parkAlerts, setParkAlerts] = useState<ParkAlert[]>([]);
   const [alertsSyncedAt, setAlertsSyncedAt] = useState<string | null>(null);
 
+  const [remoteNotice, setRemoteNotice] = useState<EventNotice | null>(null);
+  const [dismissedNotices, setDismissedNotices] = useState<string[]>([]);
+
   const refreshAppConfig = useCallback(() => {
     fetchEnabledUpcomingParks().then((ids) => {
       if (ids) setEnabledUpcomingParks(ids);
+    });
+    fetchEventNotice().then((notice) => {
+      if (notice !== undefined) setRemoteNotice(notice);
     });
     fetchAlerts().then((snapshot) => {
       if (!snapshot) return;
@@ -629,6 +667,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     Promise.all([
       loadCachedEnabledUpcomingParks().then(setEnabledUpcomingParks),
+      loadCachedEventNotice().then(setRemoteNotice),
+      loadDismissedNotices().then(setDismissedNotices),
       loadCachedAlerts().then((snapshot) => {
         if (!snapshot) return;
         setParkAlerts(snapshot.alerts);
@@ -636,6 +676,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }),
     ]).then(refreshAppConfig);
   }, [refreshAppConfig]);
+
+  // A notice is hidden outside its date window, once dismissed here, or when
+  // it points at a park this build doesn't show.
+  const eventNotice = useMemo(() => {
+    if (!remoteNotice || dismissedNotices.includes(remoteNotice.id)) return null;
+    const today = todayDateString();
+    if (remoteNotice.startsAt && today < remoteNotice.startsAt) return null;
+    if (remoteNotice.endsAt && today > remoteNotice.endsAt) return null;
+    if (remoteNotice.parkId && !parks.some((p) => p.id === remoteNotice.parkId)) return null;
+    return remoteNotice;
+  }, [remoteNotice, dismissedNotices, parks]);
+
+  const dismissEventNotice = useCallback((id: string) => {
+    setDismissedNotices((prev) => {
+      const next = [...prev.filter((d) => d !== id), id];
+      saveDismissedNotices(next);
+      return next;
+    });
+  }, []);
 
   const refreshContentIfFallenBack = useCallback(() => {
     if (!usedContentFallbackRef.current) return;
@@ -650,8 +709,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth
-      .getSession()
+    AsyncStorage.getItem(GUEST_MODE_KEY)
+      .then((value) => {
+        if (value === 'true') setGuestMode(true);
+      })
+      .catch(() => {})
+      .then(() => supabase.auth.getSession())
       .then(({ data }) => {
         setSession(data.session);
       })
@@ -1055,7 +1118,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // trip_id-less completion row with zero miles/elevation so it flips the
   // "completed" indicator without touching mileage stats.
   const markTrailCompleted = useCallback((trailId: string, parkId: string, name: string) => {
-    if (!requireAccount()) return;
+    if (!requireAccount({ type: 'trail', trailId, parkId, name })) return;
     if (trailCompletions.some((row) => row.trail_id === trailId)) return;
     const row: TrailCompletionRow = { trail_id: trailId, trip_id: null, park_id: parkId, name, miles: 0, elevation_gain_ft: 0 };
     setTrailCompletions((prev) => [...prev, row]);
@@ -1115,7 +1178,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateParkStatus = useCallback((parkId: string, status: ParkStatus) => {
-    if (!requireAccount()) return;
+    if (!requireAccount({ type: 'status', parkId, status })) return;
     setParks((prev) =>
       prev.map((p) => (p.id === parkId ? { ...p, status } : p))
     );
@@ -1124,7 +1187,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [parks, persistParkStatus, requireAccount]);
 
   const toggleFavorite = useCallback((parkId: string) => {
-    if (!requireAccount()) return;
+    if (!requireAccount({ type: 'favorite', parkId })) return;
     const current = parks.find((p) => p.id === parkId);
     const nextFavorite = !(current?.isFavorite ?? false);
     setParks((prev) =>
@@ -1714,6 +1777,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     flushInBackground();
   }, [queueOp, flushInBackground]);
 
+  // Redoes what a guest tapped before signing up, once their own data has
+  // loaded — so it applies to their account rather than the empty guest state.
+  // Each case is a no-op if the account already has it.
+  useEffect(() => {
+    const action = pendingGuestActionRef.current;
+    if (!session || dataLoading || !action) return;
+    pendingGuestActionRef.current = null;
+    const park = 'parkId' in action ? parks.find((p) => p.id === action.parkId) : undefined;
+    switch (action.type) {
+      case 'favorite':
+        if (park && !park.isFavorite) toggleFavorite(action.parkId);
+        return;
+      case 'status':
+        if (park && park.status !== action.status) updateParkStatus(action.parkId, action.status);
+        return;
+      case 'trail':
+        markTrailCompleted(action.trailId, action.parkId, action.name);
+        return;
+      case 'tripForm':
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('Main', {
+            screen: 'LogTrip',
+            params: { screen: 'LogTripForm', params: { parkId: action.parkId, initialTripType: action.tripType } },
+          });
+        }
+        return;
+      case 'tab':
+        if (!navigationRef.isReady()) return;
+        if (action.tab === 'LogTrip') {
+          navigationRef.navigate('Main', { screen: 'LogTrip', params: { screen: 'TripChooser' } });
+        } else {
+          navigationRef.navigate('Main', { screen: action.tab });
+        }
+        return;
+    }
+  }, [session, dataLoading, parks, toggleFavorite, updateParkStatus, markTrailCompleted]);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setUserProfile(DEFAULT_PROFILE);
@@ -1760,6 +1860,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         parks,
         parkAlerts,
         alertsSyncedAt,
+        eventNotice,
+        dismissEventNotice,
         trips,
         badges,
         userProfile,

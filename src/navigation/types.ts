@@ -3,7 +3,7 @@ import { TripType } from '@/types';
 
 export type RootStackParamList = {
   Welcome: undefined;
-  Auth: undefined;
+  Auth: { mode?: 'Log In' | 'Sign Up' } | undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
 };
 

@@ -21,11 +21,35 @@ export interface Park {
   description: string;
   establishedYear: number;
   acres: number;
+  /** Certified International Dark Sky Park (DarkSky International). */
+  darkSkyPark?: boolean;
   status: ParkStatus;
   isFavorite: boolean;
   /** Approximate latitude/longitude of the park, used to place its pin on the Explore map. */
   lat: number;
   lng: number;
+}
+
+/** 'park' links to a park, 'event' is dated (fee-free day), 'info' is a plain heads-up. */
+export type EventNoticeKind = 'park' | 'event' | 'info';
+
+/**
+ * A Home-screen notice set remotely in Supabase `app_config` (key
+ * `event_notice`) so it can change without an app update. Dismissals are
+ * remembered per `id`, so a new id shows again to everyone.
+ */
+export interface EventNotice {
+  id: string;
+  kind: EventNoticeKind;
+  eyebrow: string;
+  title: string;
+  body?: string;
+  /** For kind 'park' (or any kind): the park the link opens. */
+  parkId?: string;
+  linkLabel?: string;
+  /** Inclusive "YYYY-MM-DD" window; either end may be left open. */
+  startsAt?: string;
+  endsAt?: string;
 }
 
 export type ActivityType =
