@@ -94,7 +94,7 @@ function TreeIcon({ size = 20 }: { size?: number }) {
 
 export default function ParkDetailScreen({ route, navigation }: Props) {
   const { parkId } = route.params;
-  const { parks, trips, trails, animals, toggleFavorite, updateParkStatus, isTrailCompleted, isAnimalSpotted, parkAlerts, alertsSyncedAt } = useApp();
+  const { parks, trips, trails, animals, toggleFavorite, updateParkStatus, isTrailCompleted, isAnimalSpotted, parkAlerts, alertsSyncedAt, requireAccount } = useApp();
   const insets = useSafeAreaInsets();
   const park = parks.find((p) => p.id === parkId);
   const parkTrips = trips.filter((t) => t.parkId === parkId);
@@ -256,14 +256,14 @@ export default function ParkDetailScreen({ route, navigation }: Props) {
         <PrimaryButton
           label={park.status === 'visited' ? 'LOG ANOTHER TRIP' : 'LOG A TRIP'}
           onPress={() =>
-            (navigation as any).navigate('LogTripForm', { parkId: park.id, initialTripType: 'logged' })
+            requireAccount() && (navigation as any).navigate('LogTripForm', { parkId: park.id, initialTripType: 'logged' })
           }
           style={styles.ctaBtn}
         />
         <SecondaryButton
           label="PLAN A TRIP"
           onPress={() =>
-            (navigation as any).navigate('LogTripForm', { parkId: park.id, initialTripType: 'planned' })
+            requireAccount() && (navigation as any).navigate('LogTripForm', { parkId: park.id, initialTripType: 'planned' })
           }
           style={styles.ctaBtn}
         />

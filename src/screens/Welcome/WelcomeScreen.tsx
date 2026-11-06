@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
-import { colors, spacing, typography, shadows } from '@/theme';
+import { colors, spacing, radius, typography, shadows } from '@/theme';
 import { preloadAssets } from '@/utils/preloadAssets';
 import PrimaryButton from '@/components/PrimaryButton';
+import { useApp } from '@/context/AppContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen({ navigation }: Props) {
+  const { continueAsGuest } = useApp();
   const [assetsReady, setAssetsReady] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -48,12 +50,17 @@ export default function WelcomeScreen({ navigation }: Props) {
 
         <View style={styles.buttons}>
           {assetsReady ? (
-            <PrimaryButton
-              label="Log In / Sign Up"
-              icon={require('@/assets/icons/mountain.png')}
-              onPress={() => navigation.navigate('Auth')}
-              style={styles.primaryBtn}
-            />
+            <>
+              <PrimaryButton
+                label="Log In / Sign Up"
+                icon={require('@/assets/icons/mountain.png')}
+                onPress={() => navigation.navigate('Auth')}
+                style={styles.primaryBtn}
+              />
+              <TouchableOpacity onPress={continueAsGuest} activeOpacity={0.85} style={styles.guestLink}>
+                <Text style={styles.guestLinkText}>Browse Without an Account</Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <View style={styles.loadingBlock}>
               <View style={styles.progressTrack}>
@@ -131,6 +138,20 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.brownDark,
     ...shadows.lg,
+  },
+  guestLink: {
+    width: '85%',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radius.full,
+    borderWidth: 2,
+    borderColor: colors.brownDark,
+    backgroundColor: colors.surface,
+    ...shadows.lg,
+  },
+  guestLinkText: {
+    ...typography.labelBold,
+    color: colors.brownDark,
   },
   loadingBlock: {
     width: '85%',

@@ -173,6 +173,7 @@ These features are not being built yet. However, the code must be structured so 
 
 - The app is named **Parks Pal** but the display title on the welcome screen reads **"National Park Tracker"** — match the reference image exactly.
 - The motto is: **"COLLECT. EXPLORE. REMEMBER."** — used in onboarding/marketing surfaces.
-- There are **63 U.S. National Parks**, with **Chiricahua (#64)** pending: its bill passed Congress in Oct 2026 and awaits signature. It's fully built but lives in `UPCOMING_PARKS` and stays hidden until its id is in the Supabase `app_config` row `enabled_upcoming_parks` (see `supabase/migrations/2026-10-13-app-config.sql`). Never hardcode 63 — use `stats.totalParks` / `parks.length`, which follow the switch.
+- There are **64 U.S. National Parks**. **Chiricahua (#64)** became official in Nov 2026; it still lives in `UPCOMING_PARKS` and is shown because its id is in the Supabase `app_config` row `enabled_upcoming_parks` (switched on 2026-11-06 — see `supabase/migrations/2026-10-13-app-config.sql`). Never hardcode the count — use `stats.totalParks` / `parks.length`, which follow the switch.
+- Guests can browse without an account (Welcome → "Browse Without an Account") — required by App Store guideline 5.1.1(v). Anything that saves to the account goes through `requireAccount()` from `AppContext`, which prompts guests to sign up.
 - The bottom tab center button is a `+` FAB for "Log a Trip" — it is NOT a standard tab; it opens a modal stack.
-- Onboarding (explorer style + goal selection) is skippable and should not block access to the app.
+- Onboarding (explorer style + goal selection) is skippable and should not block access to the app — and neither should sign-in (see guest browsing above).

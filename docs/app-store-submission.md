@@ -74,13 +74,16 @@ A pre-confirmed reviewer account exists so reviewers can skip the email-confirma
 
 **App Review notes (paste into App Store Connect → App Review Information → Notes):**
 > A demo account is provided (see Sign-In Information) that's already confirmed and ready to log in with — no email confirmation step needed for it. If you'd rather create your own account instead, note that new sign-ups do require confirming an email address before you can log in, since that's a standard part of the app's account flow.
+>
+> No account is needed to browse: tap "Browse Without an Account" on the welcome screen to explore every park, trail, and animal. An account is only asked for when saving something to it — marking parks visited, bucket-listing, logging or planning trips, and the Trips and Profile tabs.
+
+**Guideline 5.1.1(v) rejection (review of 1.0.0 (9), 2026-11-04):** the app required sign-in before browsing parks. Fixed by adding guest browsing (the welcome-screen link above); saving actions prompt to sign up instead of blocking the whole app.
 
 **TestFlight external testing — Beta App Review fields:**
 
 Beta App Description ("What to Test"):
 ```
-<!-- When Chiricahua (#64) is switched on, update every "63" in this file to 64. -->
-Parks Pal is a national park tracker — log trips, track which of the 63 U.S. National Parks you've visited, collect postcards from every trip, and earn badges.
+Parks Pal is a national park tracker — log trips, track which of the 64 U.S. National Parks you've visited, collect postcards from every trip, and earn badges.
 
 Please test:
 - Signing up for an account (requires confirming your email)
@@ -113,10 +116,10 @@ Contact Information: developer's real name, phone, and email (this is Apple's pr
 `national park,hiking,trip planner,travel journal,postcards,badges,camping,outdoors,nature,trail log`
 
 ### Google Play Short Description (80 char limit)
-`Track, plan, and log your visits to all 63 U.S. National Parks.`
+`Track, plan, and log your visits to all 64 U.S. National Parks.`
 
 ### Full Description (works for both stores, ~1650 chars — well under either 4000-char cap)
-Avoids the park count ("every" instead of "63") because the description can only change with a new app version.
+Avoids the park count ("every" instead of a number) because the description can only change with a new app version.
 ```
 Parks Pal is your cozy companion for exploring America's National Parks.
 

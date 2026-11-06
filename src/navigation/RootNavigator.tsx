@@ -11,7 +11,7 @@ import { colors } from '@/theme';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
-  const { session, authLoading, dataLoading } = useApp();
+  const { session, isGuest, authLoading, dataLoading } = useApp();
 
   if (authLoading || dataLoading) {
     return (
@@ -25,6 +25,11 @@ export default function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
       {session ? (
         <Stack.Screen name="Main" component={TabNavigator} options={{ animation: 'fade' }} />
+      ) : isGuest ? (
+        <>
+          <Stack.Screen name="Main" component={TabNavigator} options={{ animation: 'fade' }} />
+          <Stack.Screen name="Auth" component={AuthScreen} options={{ animation: 'slide_from_bottom' }} />
+        </>
       ) : (
         <>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />

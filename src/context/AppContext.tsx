@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { AppState, Platform } from 'react-native';
+import { Alert, AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import * as Crypto from 'expo-crypto';
@@ -37,6 +37,7 @@ import { supabase } from '@/lib/supabase';
 import { showToast } from '@/components/Toast';
 import { celebrateBadges } from '@/components/BadgeEarnedModal';
 import { captureException } from '@/lib/sentry';
+import { navigationRef } from '@/navigation/navigationRef';
 
 // Logs the failure and surfaces a toast so a failed save is never silent —
 // `action` should read naturally after "Couldn't ", e.g. "save your trip".
@@ -44,6 +45,25 @@ function reportError(action: string, error: unknown) {
   console.error(`Failed to ${action}:`, error);
   captureException(error, { action });
   showToast(`Couldn't ${action}. Please try again.`, 'error');
+}
+
+// Shown when a guest (browsing without an account) tries something that saves
+// to their account — browsing parks, trails, and animals never needs one.
+function promptForAccount() {
+  const title = 'Create a free account';
+  const message = 'Sign up to track the parks you visit, log trips, and earn badges.';
+  const openAuth = () => {
+    if (navigationRef.isReady()) navigationRef.navigate('Auth');
+  };
+  // Alert.alert is a no-op on react-native-web.
+  if (Platform.OS === 'web') {
+    if (window.confirm(`${title}\n\n${message}`)) openAuth();
+    return;
+  }
+  Alert.alert(title, message, [
+    { text: 'Not Now', style: 'cancel' },
+    { text: 'Log In / Sign Up', onPress: openAuth },
+  ]);
 }
 
 // AuthScreen stashes the explorer style/goal/name picked during sign-up
@@ -359,6 +379,8 @@ interface AppContextValue {
   userProfile: UserProfile;
   stats: UserStats;
   session: Session | null;
+  /** Browsing without an account — read-only until they sign up or log in. */
+  isGuest: boolean;
   authLoading: boolean;
   dataLoading: boolean;
   trails: Trail[];
@@ -378,6 +400,9 @@ interface AppContextValue {
   updateProfileBackground: (background: ProfileBackground) => void;
   updateProfileAvatar: (avatar: ProfileAvatar) => void;
   updateUnits: (units: Units) => void;
+  continueAsGuest: () => void;
+  /** True when signed in; otherwise prompts the guest to sign up and returns false. */
+  requireAccount: () => boolean;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   isTrailCompleted: (trailId: string) => boolean;
@@ -407,6 +432,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const earnedIdsRef = useRef<Set<string>>(new Set());
   const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [session, setSession] = useState<Session | null>(null);
+  const [guestMode, setGuestMode] = useState(false);
+  const isGuest = guestMode && !session;
   const [authLoading, setAuthLoading] = useState(true);
   const [trailCompletions, setTrailCompletions] = useState<TrailCompletionRow[]>([]);
   const [animalSightings, setAnimalSightings] = useState<AnimalSightingRow[]>([]);
@@ -476,6 +503,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
   const loadGateRef = useRef<Promise<void>>(Promise.resolve());
+
+  // Guest mode ends once they sign in, so signing out later returns to Welcome.
+  useEffect(() => {
+    if (session) setGuestMode(false);
+  }, [session]);
+
+  const continueAsGuest = useCallback(() => setGuestMode(true), []);
+
+  const requireAccount = useCallback(() => {
+    if (sessionRef.current) return true;
+    promptForAccount();
+    return false;
+  }, []);
 
   const isTripPending = useCallback(
     (tripId: string) =>
@@ -1015,31 +1055,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // trip_id-less completion row with zero miles/elevation so it flips the
   // "completed" indicator without touching mileage stats.
   const markTrailCompleted = useCallback((trailId: string, parkId: string, name: string) => {
+    if (!requireAccount()) return;
     if (trailCompletions.some((row) => row.trail_id === trailId)) return;
     const row: TrailCompletionRow = { trail_id: trailId, trip_id: null, park_id: parkId, name, miles: 0, elevation_gain_ft: 0 };
     setTrailCompletions((prev) => [...prev, row]);
     queueOp({ type: 'trail.complete', row });
     flushInBackground();
-  }, [trailCompletions, queueOp, flushInBackground]);
+  }, [trailCompletions, queueOp, flushInBackground, requireAccount]);
 
   // Only clears the manual (trip_id-less) completion — a completion earned
   // by an actual logged trip is left alone, since that's real history.
   const unmarkTrailCompleted = useCallback((trailId: string) => {
+    if (!requireAccount()) return;
     setTrailCompletions((prev) => prev.filter((row) => !(row.trail_id === trailId && row.trip_id === null)));
     queueOp({ type: 'trail.uncomplete', trailId });
     flushInBackground();
-  }, [queueOp, flushInBackground]);
+  }, [queueOp, flushInBackground, requireAccount]);
 
   // A user flagging a trail/animal as wrong. It's queued like any other change,
   // so a report made with no signal isn't lost — it goes out on reconnect.
   const submitContentReport = useCallback(
     async (report: ContentReportInput): Promise<boolean> => {
-      if (!sessionRef.current) return false;
+      if (!requireAccount()) return false;
       queueOp({ type: 'report.submit', report });
       await Promise.race([flushOutboxRef.current(), sleep(FLUSH_WAIT_MS)]);
       return true;
     },
-    [queueOp]
+    [queueOp, requireAccount]
   );
 
   // Same reasoning as the badges useMemo above — stats represent things that
@@ -1073,21 +1115,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateParkStatus = useCallback((parkId: string, status: ParkStatus) => {
+    if (!requireAccount()) return;
     setParks((prev) =>
       prev.map((p) => (p.id === parkId ? { ...p, status } : p))
     );
     const isFavorite = parks.find((p) => p.id === parkId)?.isFavorite ?? false;
     persistParkStatus(parkId, status, isFavorite);
-  }, [parks, persistParkStatus]);
+  }, [parks, persistParkStatus, requireAccount]);
 
   const toggleFavorite = useCallback((parkId: string) => {
+    if (!requireAccount()) return;
     const current = parks.find((p) => p.id === parkId);
     const nextFavorite = !(current?.isFavorite ?? false);
     setParks((prev) =>
       prev.map((p) => (p.id === parkId ? { ...p, isFavorite: nextFavorite } : p))
     );
     persistParkStatus(parkId, current?.status ?? 'notVisited', nextFavorite);
-  }, [parks, persistParkStatus]);
+  }, [parks, persistParkStatus, requireAccount]);
 
   // Writes a trip (and its day-by-day rows/photos) to Supabase, upserting
   // the trip row by its already-known client-generated id rather than
@@ -1721,6 +1765,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         userProfile,
         stats,
         session,
+        isGuest,
         authLoading,
         dataLoading,
         trails,
@@ -1739,6 +1784,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updateProfileBackground,
         updateProfileAvatar,
         updateUnits,
+        continueAsGuest,
+        requireAccount,
         signOut,
         deleteAccount,
         isTrailCompleted,

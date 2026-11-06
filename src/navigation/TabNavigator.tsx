@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { colors, spacing, shadows, typography, fontFamilies } from '@/theme';
+import { useApp } from '@/context/AppContext';
 
 function PlusIcon() {
   return (
@@ -122,8 +123,12 @@ function ProfileStackNav() {
   );
 }
 
+// Tabs that only hold the user's own data — guests get a sign-up prompt instead.
+const ACCOUNT_TABS = ['LogTrip', 'TripsTab', 'ProfileTab'];
+
 function CustomTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { requireAccount } = useApp();
 
   const tabConfig = [
     { key: 'HomeTab', label: 'Home', icon: require('@/assets/icons/icon-dashboard.png') },
@@ -141,6 +146,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
         const isCenter = config.key === 'LogTrip';
 
         const onPress = () => {
+          if (ACCOUNT_TABS.includes(config.key) && !requireAccount()) return;
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!isFocused && !event.defaultPrevented) {
             navigation.navigate(route.name);
@@ -151,7 +157,9 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           // Always jump straight to the chooser, even if LogTrip is already
           // the focused tab with a half-filled form sitting in it — the "+"
           // means "start something new," not "resume where I left off."
-          const onFabPress = () => navigation.navigate('LogTrip', { screen: 'TripChooser' });
+          const onFabPress = () => {
+            if (requireAccount()) navigation.navigate('LogTrip', { screen: 'TripChooser' });
+          };
           return (
             <TouchableOpacity key={route.key} onPress={onFabPress} style={styles.fabWrapper} activeOpacity={0.85}>
               <View style={styles.fab}>
