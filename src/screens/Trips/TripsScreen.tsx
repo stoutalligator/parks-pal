@@ -7,6 +7,7 @@ import { Trip } from '@/types';
 import { colors, spacing, radius, shadows, typography } from '@/theme';
 import TripCard from '@/components/TripCard';
 import EmptyState from '@/components/EmptyState';
+import { usePullToRefresh } from '@/components/PullToRefresh';
 
 function AddTripButton({ onPress }: { onPress: () => void }) {
   return (
@@ -18,6 +19,7 @@ function AddTripButton({ onPress }: { onPress: () => void }) {
 
 export default function TripsScreen() {
   const { trips } = useApp();
+  const refreshControl = usePullToRefresh();
   const navigation = useNavigation<any>();
   const openChooser = () => navigation.navigate('LogTrip', { screen: 'TripChooser' });
 
@@ -57,6 +59,7 @@ export default function TripsScreen() {
         <AddTripButton onPress={openChooser} />
       </View>
       <SectionList
+        refreshControl={refreshControl}
         sections={sections}
         keyExtractor={(trip) => trip.id}
         contentContainerStyle={styles.scroll}

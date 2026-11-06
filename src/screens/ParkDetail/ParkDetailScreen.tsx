@@ -14,6 +14,7 @@ import StatusBadge from '@/components/StatusBadge';
 import TripCard from '@/components/TripCard';
 import PrimaryButton from '@/components/PrimaryButton';
 import SecondaryButton from '@/components/SecondaryButton';
+import { tapHaptic } from '@/utils/haptics';
 
 type Props = NativeStackScreenProps<ParksStackParamList, 'ParkDetail'>;
 
@@ -128,11 +129,20 @@ export default function ParkDetailScreen({ route, navigation }: Props) {
           <View style={[styles.heroActions, { top: insets.top + 16 }]}>
             <TouchableOpacity
               style={[styles.heroActionBtn, park.status === 'visited' && styles.heroActionBtnVisitedActive]}
-              onPress={() => updateParkStatus(park.id, park.status === 'visited' ? 'notVisited' : 'visited')}
+              onPress={() => {
+                tapHaptic();
+                updateParkStatus(park.id, park.status === 'visited' ? 'notVisited' : 'visited');
+              }}
             >
               <CheckIcon color={park.status === 'visited' ? colors.textInverse : colors.textSecondary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.heroActionBtn} onPress={() => toggleFavorite(park.id)}>
+            <TouchableOpacity
+              style={styles.heroActionBtn}
+              onPress={() => {
+                tapHaptic();
+                toggleFavorite(park.id);
+              }}
+            >
               <Image
                 source={require('@/assets/icons/icon-favorites.png')}
                 style={[styles.heartIcon, !park.isFavorite && styles.heartIconInactive]}

@@ -5,6 +5,8 @@ import { colors, radius, spacing, shadows, typography } from '@/theme';
 import { Park } from '@/types';
 import { getParkImage } from '@/data/parkImages';
 import StatusBadge from './StatusBadge';
+import PressableScale from './PressableScale';
+import { tapHaptic } from '@/utils/haptics';
 
 interface Props {
   park: Park;
@@ -24,7 +26,7 @@ function CheckIcon({ color }: { color: string }) {
 export default function ParkCard({ park, onPress, onFavorite, onToggleVisited }: Props) {
   const visited = park.status === 'visited';
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.card}>
+    <PressableScale onPress={onPress} style={styles.card} accessibilityLabel={park.name}>
       <View style={styles.imageBox}>
         <Image source={getParkImage(park.id)} style={styles.parkImage} resizeMode="cover" />
       </View>
@@ -34,7 +36,14 @@ export default function ParkCard({ park, onPress, onFavorite, onToggleVisited }:
         <StatusBadge status={park.status} />
       </View>
       <View style={styles.actions}>
-        <TouchableOpacity onPress={onFavorite} hitSlop={10} style={styles.actionBtn}>
+        <TouchableOpacity
+          onPress={() => {
+            tapHaptic();
+            onFavorite?.();
+          }}
+          hitSlop={10}
+          style={styles.actionBtn}
+        >
           <Image
             source={require('@/assets/icons/icon-favorites.png')}
             style={[styles.heartIcon, !park.isFavorite && styles.heartIconInactive]}
@@ -42,14 +51,17 @@ export default function ParkCard({ park, onPress, onFavorite, onToggleVisited }:
           />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={onToggleVisited}
+          onPress={() => {
+            tapHaptic();
+            onToggleVisited?.();
+          }}
           hitSlop={10}
           style={[styles.actionBtn, styles.iconBtn, visited && styles.iconBtnVisitedActive]}
         >
           <CheckIcon color={visited ? colors.textInverse : colors.textMuted} />
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 

@@ -7,6 +7,7 @@ import { colors, spacing, radius, shadows, typography } from '@/theme';
 import FilterPill from '@/components/FilterPill';
 import ParkCard from '@/components/ParkCard';
 import { ParkStatus } from '@/types';
+import { usePullToRefresh } from '@/components/PullToRefresh';
 
 type Filter = 'All Parks' | 'Visited' | 'Bucket List' | 'Planned' | 'Not Visited';
 
@@ -22,6 +23,7 @@ const STATUS_MAP: Partial<Record<Filter, ParkStatus>> = {
 
 export default function ExploreScreen() {
   const { parks, stats, toggleFavorite, updateParkStatus } = useApp();
+  const refreshControl = usePullToRefresh();
   const navigation = useNavigation<any>();
   const [filter, setFilter] = useState<Filter>('All Parks');
   const [search, setSearch] = useState('');
@@ -75,7 +77,12 @@ export default function ExploreScreen() {
       </ScrollView>
 
       {/* Park list */}
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+      >
         {filtered.map((park) => (
           <ParkCard
             key={park.id}

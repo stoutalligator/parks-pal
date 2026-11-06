@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React from 'react';
 import { View, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -12,13 +12,15 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { ToastHost } from '@/components/Toast';
 import SyncBanner from '@/components/SyncBanner';
 import { BadgeEarnedModalHost } from '@/components/BadgeEarnedModal';
+import { VisitStampHost } from '@/components/VisitStamp';
 import { navigationRef } from '@/navigation/navigationRef';
 import { colors, radius, shadows } from '@/theme';
 import { initSentry } from '@/lib/sentry';
 
-// Keep the native splash (splash-icon.png) up until fonts are ready, instead
-// of it auto-hiding on JS bundle load and leaving a blank frame while fonts
-// stream in — SplashScreen.hideAsync() is a no-op on web.
+// Keep the native splash (splash-icon.png) up until fonts, the session and
+// the user's data are ready — RootNavigator hides it — instead of it
+// auto-hiding on JS bundle load and flashing a blank frame and then a
+// spinner. SplashScreen.hideAsync() is a no-op on web.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 initSentry();
 
@@ -29,14 +31,6 @@ export default function App() {
     Nunito_600SemiBold,
     Nunito_700Bold,
   });
-
-  const onFontsReady = useCallback(async () => {
-    if (fontsLoaded) await SplashScreen.hideAsync();
-  }, [fontsLoaded]);
-
-  useEffect(() => {
-    onFontsReady();
-  }, [onFontsReady]);
 
   if (!fontsLoaded) {
     return (
@@ -57,6 +51,7 @@ export default function App() {
             <SyncBanner />
             <ToastHost />
             <BadgeEarnedModalHost />
+            <VisitStampHost />
           </AppProvider>
         </ErrorBoundary>
       </SafeAreaProvider>

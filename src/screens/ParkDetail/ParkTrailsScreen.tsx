@@ -10,6 +10,7 @@ import { Trail, TrailDifficulty, Units } from '@/types';
 import ScreenHeader from '@/components/ScreenHeader';
 import { alertsForTrail } from '@/data/npsAlerts';
 import { convertMiles, convertFeet, distanceLabel, elevationLabel } from '@/utils/units';
+import { tapHaptic } from '@/utils/haptics';
 
 type Props = NativeStackScreenProps<ParksStackParamList, 'ParkTrails'>;
 
@@ -118,11 +119,11 @@ export default function ParkTrailsScreen({ route, navigation }: Props) {
             completed={isTrailCompleted(trail.id)}
             units={units}
             hasAlert={alertsForTrail(parkAlerts, trail, trailDetails[trail.id]?.alertKeywords).length > 0}
-            onToggleCompleted={() =>
-              isTrailCompleted(trail.id)
-                ? unmarkTrailCompleted(trail.id)
-                : markTrailCompleted(trail.id, trail.parkId, trail.name)
-            }
+            onToggleCompleted={() => {
+              tapHaptic();
+              if (isTrailCompleted(trail.id)) unmarkTrailCompleted(trail.id);
+              else markTrailCompleted(trail.id, trail.parkId, trail.name);
+            }}
             onPress={() => navigation.navigate('TrailDetail', { trailId: trail.id })}
           />
         ))}

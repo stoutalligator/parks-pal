@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius, typography } from '@/theme';
 import Polaroid from '@/components/Polaroid';
 import PrimaryButton from '@/components/PrimaryButton';
+import AnimatedSheet from '@/components/AnimatedSheet';
 
 export const CAPTION_MAX_LENGTH = 80;
 
@@ -20,24 +21,26 @@ const PREVIEW_SIZE = 220;
 export default function PhotoCaptionSheet({ visible, uri, caption, onSave, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState(caption);
+  // Keeps the photo on screen while the sheet slides away after uri clears.
+  const shownUri = useRef(uri);
+  if (uri) shownUri.current = uri;
 
   useEffect(() => {
     if (visible) setDraft(caption);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  if (!visible || !uri) return null;
+  if (!shownUri.current) return null;
 
   return (
-    <View style={styles.overlay}>
-      <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+    <AnimatedSheet visible={visible && !!uri} onClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.sheet, { paddingBottom: spacing.xl + insets.bottom }]}>
           <Text style={styles.title}>Add a caption</Text>
           <Text style={styles.subtitle}>It's written under the photo in your album.</Text>
 
           <View style={styles.preview}>
-            <Polaroid uri={uri} size={PREVIEW_SIZE} variant="page" rotate={-2} caption={draft.trim()} />
+            <Polaroid uri={shownUri.current} size={PREVIEW_SIZE} variant="page" rotate={-2} caption={draft.trim()} />
           </View>
 
           <TextInput
@@ -59,21 +62,11 @@ export default function PhotoCaptionSheet({ visible, uri, caption, onSave, onClo
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </AnimatedSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.overlay,
-    justifyContent: 'flex-end',
-    zIndex: 10,
-  },
   sheet: {
     backgroundColor: colors.background,
     borderTopLeftRadius: radius['2xl'],

@@ -15,6 +15,7 @@ import { useApp } from '@/context/AppContext';
 import { colors, spacing, radius, shadows, typography } from '@/theme';
 import { ContentEntryType, ContentReportReason } from '@/types';
 import PrimaryButton from '@/components/PrimaryButton';
+import AnimatedSheet from '@/components/AnimatedSheet';
 import { showToast } from '@/components/Toast';
 
 const MASCOT_THINKING = require('@/assets/mascot/mascot-thinking.png');
@@ -84,8 +85,6 @@ export default function ReportSheet({ visible, onClose, entryType, entryId, entr
     }
   }, [visible]);
 
-  if (!visible) return null;
-
   const needsNote = reason === 'other';
   const canSend = !!reason && !sending && (!needsNote || note.trim().length >= OTHER_NOTE_MIN);
 
@@ -102,8 +101,7 @@ export default function ReportSheet({ visible, onClose, entryType, entryId, entr
   };
 
   return (
-    <View style={styles.overlay}>
-      <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+    <AnimatedSheet visible={visible} onClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.sheet, { paddingBottom: spacing.xl + insets.bottom }]}>
           <View style={styles.titleRow}>
@@ -152,7 +150,7 @@ export default function ReportSheet({ visible, onClose, entryType, entryId, entr
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </AnimatedSheet>
   );
 }
 
@@ -167,16 +165,6 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
 
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.overlay,
-    justifyContent: 'flex-end',
-    zIndex: 10,
-  },
   sheet: {
     backgroundColor: colors.background,
     borderTopLeftRadius: radius['2xl'],

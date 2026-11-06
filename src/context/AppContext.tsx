@@ -43,6 +43,7 @@ import { addDays, todayDateString } from '@/utils/dates';
 import { supabase } from '@/lib/supabase';
 import { showToast } from '@/components/Toast';
 import { celebrateBadges } from '@/components/BadgeEarnedModal';
+import { celebrateVisit } from '@/components/VisitStamp';
 import { captureException } from '@/lib/sentry';
 import { navigationRef } from '@/navigation/navigationRef';
 
@@ -442,6 +443,8 @@ interface AppContextValue {
   pendingChanges: PendingChange[];
   isOffline: boolean;
   retrySync: () => Promise<void>;
+  /** Pull-to-refresh: sync queued changes, then reload the user's data in place. */
+  refreshData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -470,6 +473,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [badgesLoaded, setBadgesLoaded] = useState(false);
   const [tripsLoaded, setTripsLoaded] = useState(false);
+  // Pull-to-refresh re-runs the four loads below without resetting the
+  // loaded flags (which would swap the app for the loading screen);
+  // refreshData resolves once all four have finished.
+  const [reloadKey, setReloadKey] = useState(0);
+  const silentReloadRef = useRef(false);
+  const refreshWaitRef = useRef<{ remaining: number; resolve: () => void } | null>(null);
+  const finishRefreshStep = useCallback(() => {
+    const wait = refreshWaitRef.current;
+    if (!wait) return;
+    wait.remaining -= 1;
+    if (wait.remaining > 0) return;
+    refreshWaitRef.current = null;
+    silentReloadRef.current = false;
+    wait.resolve();
+  }, []);
   const dataLoading = !!session && !(parksLoaded && profileLoaded && badgesLoaded && tripsLoaded);
 
   // Where each section of the user's data last came from: 'network' (loaded
@@ -743,7 +761,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setProfileLoaded(false);
       return;
     }
-    setProfileLoaded(false);
+    if (!silentReloadRef.current) setProfileLoaded(false);
     loadGateRef.current
       .then(() => supabase.from('profiles').select('*').eq('id', userId).single())
       .then(({ data, error }) => {
@@ -772,8 +790,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           )
         );
       })
-      .then(() => setProfileLoaded(true));
-  }, [userId]);
+      .then(() => {
+        setProfileLoaded(true);
+        finishRefreshStep();
+      });
+  }, [userId, reloadKey]);
 
   useEffect(() => {
     if (!userId) {
@@ -781,7 +802,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setParksLoaded(false);
       return;
     }
-    setParksLoaded(false);
+    if (!silentReloadRef.current) setParksLoaded(false);
     loadGateRef.current
       .then(() => supabase.from('user_park_status').select('*').eq('user_id', userId))
       .then(({ data, error }) => {
@@ -800,8 +821,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           )
         );
       })
-      .then(() => setParksLoaded(true));
-  }, [userId]);
+      .then(() => {
+        setParksLoaded(true);
+        finishRefreshStep();
+      });
+  }, [userId, reloadKey]);
 
   useEffect(() => {
     if (!userId) {
@@ -810,7 +834,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setBadgesLoaded(false);
       return;
     }
-    setBadgesLoaded(false);
+    if (!silentReloadRef.current) setBadgesLoaded(false);
     loadGateRef.current
       .then(() =>
         supabase.from('user_badges').select('badge_id, earned_date').eq('user_id', userId).eq('earned', true)
@@ -829,8 +853,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setEarnedDates(dates);
         earnedIdsRef.current = new Set(Object.keys(dates));
       })
-      .then(() => setBadgesLoaded(true));
-  }, [userId]);
+      .then(() => {
+        setBadgesLoaded(true);
+        finishRefreshStep();
+      });
+  }, [userId, reloadKey]);
 
   useEffect(() => {
     if (!userId) {
@@ -841,7 +868,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTripsLoaded(false);
       return;
     }
-    setTripsLoaded(false);
+    if (!silentReloadRef.current) setTripsLoaded(false);
     loadGateRef.current.then(() => Promise.all([
       supabase
         .from('user_trail_completions')
@@ -989,8 +1016,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setTrips((prev) => mergePendingTrips(prev, queued));
         });
       })
-      .finally(() => setTripsLoaded(true));
-  }, [userId]);
+      .finally(() => {
+        setTripsLoaded(true);
+        finishRefreshStep();
+      });
+  }, [userId, reloadKey]);
 
   // Restores the last-known copy of the user's data from the device, so the
   // app opens instantly (and works offline) instead of waiting on — or being
@@ -1182,10 +1212,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateParkStatus = useCallback((parkId: string, status: ParkStatus) => {
     if (!requireAccount({ type: 'status', parkId, status })) return;
+    const park = parks.find((p) => p.id === parkId);
+    if (park && status === 'visited' && park.status !== 'visited') celebrateVisit(park);
     setParks((prev) =>
       prev.map((p) => (p.id === parkId ? { ...p, status } : p))
     );
-    const isFavorite = parks.find((p) => p.id === parkId)?.isFavorite ?? false;
+    const isFavorite = park?.isFavorite ?? false;
     persistParkStatus(parkId, status, isFavorite);
   }, [parks, persistParkStatus, requireAccount]);
 
@@ -1492,6 +1524,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     commitOutbox(outboxRef.current.map((o) => ({ ...o, attempts: 0, lastError: undefined })));
     await Promise.all([syncPendingTrips(), flushOutboxRef.current()]);
   }, [commitOutbox, syncPendingTrips]);
+
+  // Pull-to-refresh: send anything queued, then re-fetch the user's data in
+  // place. Bounded so a dead connection can't leave the spinner running.
+  const refreshData = useCallback(async () => {
+    refreshAppConfig();
+    refreshContentIfFallenBack();
+    if (!sessionRef.current || refreshWaitRef.current) return;
+    await Promise.race([Promise.all([syncPendingTrips(), flushOutboxRef.current()]), sleep(FLUSH_WAIT_MS)]);
+    const reloaded = new Promise<void>((resolve) => {
+      refreshWaitRef.current = { remaining: 4, resolve };
+    });
+    silentReloadRef.current = true;
+    setReloadKey((k) => k + 1);
+    await Promise.race([reloaded, sleep(15000)]);
+    refreshWaitRef.current = null;
+    silentReloadRef.current = false;
+  }, [refreshAppConfig, refreshContentIfFallenBack, syncPendingTrips]);
 
   const pendingChanges: PendingChange[] = useMemo(() => {
     const lookup: DescribeLookup = {
@@ -1904,6 +1953,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         pendingChanges,
         isOffline,
         retrySync,
+        refreshData,
       }}
     >
       {children}

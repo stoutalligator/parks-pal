@@ -27,6 +27,7 @@ import DateRangePicker from '@/components/DateRangePicker';
 import { showToast } from '@/components/Toast';
 import { convertMiles, convertFeet, toMiles, toFeet, distanceLabel, elevationLabel } from '@/utils/units';
 import { formatDateRange, addDays, dayCountBetween, parseLocalDate } from '@/utils/dates';
+import { successHaptic } from '@/utils/haptics';
 
 type FormMode = 'plan' | 'log' | 'complete';
 
@@ -1201,6 +1202,7 @@ export default function LogTripScreen() {
         // A failed save has already shown its own error toast; stay on the
         // form so nothing the user typed is lost.
         if (!saved) return;
+        successHaptic();
         showToast('Trip completed! A new postcard was added to your collection.', 'success');
         (navigation as any).navigate('TripsTab', { screen: 'Trips' });
         return;
@@ -1225,6 +1227,7 @@ export default function LogTripScreen() {
           days,
         });
         if (!saved) return;
+        successHaptic();
         showToast('Trip updated! Your changes have been saved.', 'success');
         (navigation as any).navigate('TripsTab', { screen: 'Trips' });
         return;
@@ -1250,6 +1253,7 @@ export default function LogTripScreen() {
       // brand-new one used to just reset the form in place with nothing after
       // it, leaving the user stranded on a blank form instead of seeing where
       // the trip landed.
+      successHaptic();
       showToast(mode === 'plan' ? 'Trip planned! We’ll be ready when you are.' : 'Adventure saved! A new postcard was added to your collection.', 'success');
       (navigation as any).navigate('TripsTab', { screen: 'Trips' });
     } finally {

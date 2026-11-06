@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, radius, spacing, typography, fontFamilies } from '@/theme';
+import { selectHaptic } from '@/utils/haptics';
 
 interface Props<T extends string> {
   options: readonly T[];
@@ -18,7 +19,10 @@ export default function SegmentedToggle<T extends string>({ options, value, onCh
             key={option}
             style={[styles.segment, active && styles.segmentActive]}
             activeOpacity={0.8}
-            onPress={() => onChange(option)}
+            onPress={() => {
+              if (!active) selectHaptic();
+              onChange(option);
+            }}
           >
             <Text style={[styles.label, active && styles.labelActive]} numberOfLines={1}>
               {option}

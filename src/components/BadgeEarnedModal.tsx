@@ -6,6 +6,7 @@ import { getBadgeImage } from '@/data/badgeImages';
 import PrimaryButton from './PrimaryButton';
 import SecondaryButton from './SecondaryButton';
 import { navigationRef } from '@/navigation/navigationRef';
+import { successHaptic } from '@/utils/haptics';
 
 // Imperative module-level API, same pattern as components/Toast.tsx — lets
 // AppContext's badge-detection effect trigger the celebration without being
@@ -14,6 +15,7 @@ let currentSetter: ((updater: (prev: Badge[]) => Badge[]) => void) | null = null
 
 export function celebrateBadges(badges: Badge[]) {
   if (badges.length === 0) return;
+  successHaptic();
   currentSetter?.((prev) => {
     const existingIds = new Set(prev.map((b) => b.id));
     return [...prev, ...badges.filter((b) => !existingIds.has(b.id))];

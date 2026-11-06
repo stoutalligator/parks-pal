@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius, typography } from '@/theme';
+import { selectHaptic } from '@/utils/haptics';
+import AnimatedSheet from './AnimatedSheet';
 
 export interface HomeCardOption {
   key: string;
@@ -19,12 +21,9 @@ interface Props {
 
 export default function HomeCustomizeSheet({ visible, options, onClose }: Props) {
   const insets = useSafeAreaInsets();
-  if (!visible) return null;
 
   return (
-    <View style={styles.overlay}>
-      <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-      <View style={[styles.sheet, { paddingBottom: spacing.xl + insets.bottom }]}>
+    <AnimatedSheet visible={visible} onClose={onClose} style={[styles.sheet, { paddingBottom: spacing.xl + insets.bottom }]}>
         <View style={styles.titleRow}>
           <Image source={require('@/assets/mascot/mascot-tip.png')} style={styles.mascot} resizeMode="contain" />
           <View style={styles.titleText}>
@@ -43,7 +42,10 @@ export default function HomeCustomizeSheet({ visible, options, onClose }: Props)
             </View>
             <Switch
               value={option.shown}
-              onValueChange={option.onChange}
+              onValueChange={(shown) => {
+                selectHaptic();
+                option.onChange(shown);
+              }}
               trackColor={{ true: colors.primary, false: colors.border }}
               thumbColor={colors.surface}
               ios_backgroundColor={colors.border}
@@ -55,22 +57,11 @@ export default function HomeCustomizeSheet({ visible, options, onClose }: Props)
         <TouchableOpacity onPress={onClose} style={styles.done} hitSlop={8}>
           <Text style={styles.doneText}>Done</Text>
         </TouchableOpacity>
-      </View>
-    </View>
+    </AnimatedSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.overlay,
-    justifyContent: 'flex-end',
-    zIndex: 10,
-  },
   sheet: {
     backgroundColor: colors.background,
     borderTopLeftRadius: radius['2xl'],

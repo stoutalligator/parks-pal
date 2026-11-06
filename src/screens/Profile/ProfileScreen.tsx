@@ -10,6 +10,8 @@ import TripCard from '@/components/TripCard';
 import { showToast } from '@/components/Toast';
 import { ProfileBackground, ProfileAvatar } from '@/types';
 import { getBadgeImage } from '@/data/badgeImages';
+import { usePullToRefresh } from '@/components/PullToRefresh';
+import PressableScale from '@/components/PressableScale';
 
 function LockIcon() {
   return (
@@ -123,8 +125,27 @@ const HERO_IMAGE_ASPECT = 1.5;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const HERO_HEIGHT = SCREEN_WIDTH / HERO_IMAGE_ASPECT;
 
+// A friendly placeholder for a Profile section with nothing in it yet.
+function EmptySectionCard({ text, onPress }: { text: string; onPress?: () => void }) {
+  const body = (
+    <>
+      <Image source={require('@/assets/mascot/mascot-thinking.png')} style={styles.emptyMascot} resizeMode="contain" />
+      <Text style={styles.emptyText}>{text}</Text>
+      {onPress && <Text style={styles.emptyChevron}>{'›'}</Text>}
+    </>
+  );
+  return onPress ? (
+    <PressableScale onPress={onPress} style={styles.emptyCard}>
+      {body}
+    </PressableScale>
+  ) : (
+    <View style={styles.emptyCard}>{body}</View>
+  );
+}
+
 export default function ProfileScreen() {
   const { stats, trips, badges, userProfile, updateProfileBackground, updateProfileAvatar } = useApp();
+  const refreshControl = usePullToRefresh();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -150,7 +171,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} refreshControl={refreshControl}>
         <View style={styles.hero}>
           <Image source={heroSource} style={styles.heroImage} resizeMode="cover" />
 
@@ -216,9 +237,10 @@ export default function ProfileScreen() {
               />
             ))
           ) : (
-            <TouchableOpacity onPress={() => navigation.navigate('LogTrip')} activeOpacity={0.7}>
-              <Text style={styles.emptyText}>No Recent Trips, log one here</Text>
-            </TouchableOpacity>
+            <EmptySectionCard
+              text="No trips logged yet. Log your first adventure!"
+              onPress={() => navigation.navigate('LogTrip', { screen: 'LogTripForm', params: { initialTripType: 'logged' } })}
+            />
           )}
         </View>
 
@@ -239,9 +261,10 @@ export default function ProfileScreen() {
               />
             ))
           ) : (
-            <TouchableOpacity onPress={() => navigation.navigate('LogTrip')} activeOpacity={0.7}>
-              <Text style={styles.emptyText}>No Planned Trips, log one here</Text>
-            </TouchableOpacity>
+            <EmptySectionCard
+              text="Nothing planned yet. Where to next?"
+              onPress={() => navigation.navigate('LogTrip', { screen: 'LogTripForm', params: { initialTripType: 'planned' } })}
+            />
           )}
         </View>
 
@@ -266,7 +289,7 @@ export default function ProfileScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.emptyText}>No badges earned yet, get exploring!</Text>
+            <EmptySectionCard text="No badges yet. Visit a park or log a trip to earn your first!" />
           )}
         </View>
 
@@ -481,7 +504,18 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle: { ...typography.h5, color: colors.textPrimary },
   viewAll: { ...typography.labelSmall, color: colors.sage },
-  emptyText: { ...typography.body, color: colors.textSecondary },
+  emptyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    ...shadows.sm,
+  },
+  emptyMascot: { width: 40, height: 40 },
+  emptyText: { ...typography.body, color: colors.textSecondary, flex: 1 },
+  emptyChevron: { ...typography.h4, color: colors.textSecondary },
 
   badgeRow: { flexDirection: 'row', gap: spacing.md },
   badgeBubble: {

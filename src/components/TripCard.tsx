@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import Svg, { Rect, Circle, Path } from 'react-native-svg';
 import { colors, radius, spacing, shadows, typography } from '@/theme';
 import { Trip } from '@/types';
@@ -8,6 +8,7 @@ import { getParkImage } from '@/data/parkImages';
 import { formatDateRange, daysUntilLabel } from '@/utils/dates';
 import { useApp } from '@/context/AppContext';
 import { tripHeadsUpAlerts } from '@/data/npsAlerts';
+import PressableScale from './PressableScale';
 
 interface Props {
   trip: Trip;
@@ -50,7 +51,7 @@ export default function TripCard({ trip, onPress }: Props) {
   const headsUp = tripHeadsUpAlerts(parkAlerts, trip);
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.card, planned && styles.cardPlanned]}>
+    <PressableScale onPress={onPress} style={[styles.card, planned && styles.cardPlanned]} accessibilityLabel={park?.name}>
       <View style={styles.imageBox}>
         <Image source={getParkImage(trip.parkId)} style={styles.parkIcon} resizeMode="cover" />
       </View>
@@ -75,7 +76,7 @@ export default function TripCard({ trip, onPress }: Props) {
         {hasPhotos && <PhotoIcon />}
       </View>
       <Text style={styles.chevron}>›</Text>
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 

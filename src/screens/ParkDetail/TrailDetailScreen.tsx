@@ -15,6 +15,7 @@ import { alertsForTrail } from '@/data/npsAlerts';
 import { getParkGuide } from '@/data/parkGuides';
 import ReportSheet, { ReportFlagButton } from '@/components/ReportSheet';
 import { convertMiles, convertFeet, distanceLabel, elevationLabel } from '@/utils/units';
+import { tapHaptic } from '@/utils/haptics';
 
 type Props = NativeStackScreenProps<ParksStackParamList, 'TrailDetail'>;
 
@@ -97,7 +98,7 @@ export default function TrailDetailScreen({ route, navigation }: Props) {
           <CompletionToggle
             completed={completed}
             onToggle={() =>
-              completed ? unmarkTrailCompleted(trail.id) : markTrailCompleted(trail.id, trail.parkId, trail.name)
+              (tapHaptic(), completed ? unmarkTrailCompleted(trail.id) : markTrailCompleted(trail.id, trail.parkId, trail.name))
             }
           />
         </View>

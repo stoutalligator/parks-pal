@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, ImageStyle, StyleProp, ImageSourcePropType } from 'react-native';
 import { colors, radius, shadows, typography } from '@/theme';
+import SkeletonPulse from './SkeletonPulse';
 
 // A little washi-tape variety across stacks/photos so the album doesn't feel
 // monochrome — cycles deterministically by index rather than randomly, so a
@@ -48,6 +49,13 @@ export default function Polaroid({
   const photoSize = size - framePad * 2;
   const tapeWidth = size * 0.42;
   const tapeHeight = tapeWidth * 0.34;
+  // Remote photos (trip uploads) can take a moment; bundled art is instant.
+  const [loadedUri, setLoadedUri] = useState<string | null>(null);
+  const loading = !source && !!uri && loadedUri !== uri;
+  const handleLoad = () => {
+    setLoadedUri(uri ?? null);
+    onLoad?.();
+  };
 
   return (
     <View
@@ -67,9 +75,14 @@ export default function Polaroid({
         source={source ?? { uri: uri ?? '' }}
         style={[styles.photo, { width: photoSize, height: photoSize }]}
         resizeMode="cover"
-        onLoad={onLoad}
-        onError={onLoad}
+        onLoad={handleLoad}
+        onError={handleLoad}
       />
+      {loading && (
+        <SkeletonPulse
+          style={[styles.photo, styles.photoPlaceholder, { top: framePad, left: framePad, width: photoSize, height: photoSize }]}
+        />
+      )}
       <View
         style={[
           styles.tape,
@@ -125,4 +138,5 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.surfaceWarm,
   },
+  photoPlaceholder: { position: 'absolute', backgroundColor: colors.cream },
 });

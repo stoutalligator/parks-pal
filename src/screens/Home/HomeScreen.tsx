@@ -11,6 +11,7 @@ import UsMap from '@/components/UsMap';
 import SegmentedToggle from '@/components/SegmentedToggle';
 import EventNoticeCard from '@/components/EventNoticeCard';
 import HomeCustomizeSheet, { HomeCardOption } from '@/components/HomeCustomizeSheet';
+import PressableScale from '@/components/PressableScale';
 import PrimaryButton from '@/components/PrimaryButton';
 import { getParkImage } from '@/data/parkImages';
 import { daysUntil, dayCountBetween, formatDateRange } from '@/utils/dates';
@@ -24,6 +25,13 @@ const FILTERS: Filter[] = ['All Parks', 'Visited', 'Bucket List', 'Planned'];
 const STATUS_MAP: Partial<Record<Filter, ParkStatus>> = {
   Visited: 'visited',
   Planned: 'planned',
+};
+
+const EMPTY_FILTER_COPY: Record<Filter, { title: string; text: string }> = {
+  'All Parks': { title: 'No parks to show', text: 'Check your connection and try again.' },
+  Visited: { title: 'No visited parks yet', text: 'Tap a pin and check it off, or log a trip to stamp your first park.' },
+  'Bucket List': { title: 'Your bucket list is empty', text: 'Tap the heart on any park to save it for later.' },
+  Planned: { title: 'No trips planned', text: 'Plan a trip from any park and it shows up here.' },
 };
 
 // Which Home cards this device has hidden (the event notice is tracked per
@@ -144,12 +152,20 @@ export default function HomeScreen() {
         <SegmentedToggle options={FILTERS} value={filter} onChange={setFilter} />
       </View>
 
-      <UsMap parks={filteredParks} onPressPark={goToPark} />
+      <View style={styles.mapArea}>
+        <UsMap parks={filteredParks} onPressPark={goToPark} />
+        {filteredParks.length === 0 && (
+          <View style={styles.mapEmpty} pointerEvents="none">
+            <Image source={require('@/assets/mascot/mascot-thinking.png')} style={styles.mapEmptyMascot} resizeMode="contain" />
+            <Text style={styles.mapEmptyTitle}>{EMPTY_FILTER_COPY[filter].title}</Text>
+            <Text style={styles.mapEmptyText}>{EMPTY_FILTER_COPY[filter].text}</Text>
+          </View>
+        )}
+      </View>
 
       {showTrip && nextTrip && nextTripPark && (
-        <TouchableOpacity
+        <PressableScale
           style={styles.countdownCard}
-          activeOpacity={0.85}
           onPress={() => navigation.navigate('TripDetail', { tripId: nextTrip.id })}
         >
           <Image source={getParkImage(nextTripPark.id)} style={styles.countdownIcon} />
@@ -171,7 +187,7 @@ export default function HomeScreen() {
             </Text>
           </View>
           <Text style={styles.chevron}>{'›'}</Text>
-        </TouchableOpacity>
+        </PressableScale>
       )}
 
       {showProgress && (isGuest ? (
@@ -200,7 +216,7 @@ export default function HomeScreen() {
           <ProgressRing percentage={stats.completionPercentage} size={64} />
           <Image
             source={require('@/assets/mascot/mascot-excited.png')}
-            style={styles.mascotPeek}
+            style={[styles.mascotPeek, styles.mascotBesideRing]}
             resizeMode="contain"
           />
         </View>
@@ -286,4 +302,23 @@ const styles = StyleSheet.create({
     right: spacing.md,
     top: -28,
   },
+  // Just left of the 64px progress ring so it peeks over the card without covering it.
+  mascotBesideRing: { right: spacing.xl + 64 + spacing.sm },
+
+  mapArea: { flex: 1 },
+  mapEmpty: {
+    position: 'absolute',
+    left: spacing['3xl'],
+    right: spacing['3xl'],
+    top: '30%',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    ...shadows.sm,
+  },
+  mapEmptyMascot: { width: 52, height: 52 },
+  mapEmptyTitle: { ...typography.h5, color: colors.textPrimary, textAlign: 'center' },
+  mapEmptyText: { ...typography.bodySmall, color: colors.textSecondary, textAlign: 'center' },
 });
