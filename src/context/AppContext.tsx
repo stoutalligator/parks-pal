@@ -394,7 +394,9 @@ interface AppContextValue {
   alertsSyncedAt: string | null;
   /** The remote Home-screen notice, if one is live and not dismissed on this device. */
   eventNotice: EventNotice | null;
-  dismissEventNotice: (id: string) => void;
+  /** The live notice whether or not it's dismissed, so it can be shown again. */
+  liveEventNotice: EventNotice | null;
+  setEventNoticeHidden: (id: string, hidden: boolean) => void;
   trips: Trip[];
   badges: Badge[];
   userProfile: UserProfile;
@@ -677,20 +679,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ]).then(refreshAppConfig);
   }, [refreshAppConfig]);
 
-  // A notice is hidden outside its date window, once dismissed here, or when
-  // it points at a park this build doesn't show.
-  const eventNotice = useMemo(() => {
-    if (!remoteNotice || dismissedNotices.includes(remoteNotice.id)) return null;
+  // A notice is live inside its date window when the park it points at is
+  // shown in this build; it's visible unless dismissed on this device.
+  const liveEventNotice = useMemo(() => {
+    if (!remoteNotice) return null;
     const today = todayDateString();
     if (remoteNotice.startsAt && today < remoteNotice.startsAt) return null;
     if (remoteNotice.endsAt && today > remoteNotice.endsAt) return null;
     if (remoteNotice.parkId && !parks.some((p) => p.id === remoteNotice.parkId)) return null;
     return remoteNotice;
-  }, [remoteNotice, dismissedNotices, parks]);
+  }, [remoteNotice, parks]);
+  const eventNotice = liveEventNotice && !dismissedNotices.includes(liveEventNotice.id) ? liveEventNotice : null;
 
-  const dismissEventNotice = useCallback((id: string) => {
+  const setEventNoticeHidden = useCallback((id: string, hidden: boolean) => {
     setDismissedNotices((prev) => {
-      const next = [...prev.filter((d) => d !== id), id];
+      const next = hidden ? [...prev.filter((d) => d !== id), id] : prev.filter((d) => d !== id);
       saveDismissedNotices(next);
       return next;
     });
@@ -1861,7 +1864,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         parkAlerts,
         alertsSyncedAt,
         eventNotice,
-        dismissEventNotice,
+        liveEventNotice,
+        setEventNoticeHidden,
         trips,
         badges,
         userProfile,

@@ -82,22 +82,28 @@ interface Props {
 }
 
 export default function UsMap({ parks, onPressPark }: Props) {
-  const [viewportHeight, setViewportHeight] = useState(0);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
 
   const onLayout = (e: LayoutChangeEvent) => {
-    setViewportHeight(e.nativeEvent.layout.height);
+    const { width, height } = e.nativeEvent.layout;
+    setViewport({ width, height });
   };
 
-  // Scale so the map fills the available height exactly (no vertical
-  // letterboxing or scrolling); width naturally overflows and is reached
-  // by panning horizontally, since Alaska/the islands sit at its edges.
+  // Scale so the map covers the whole viewport with no blank edges: fill the
+  // height and pan horizontally (Alaska/the islands sit at its edges), or —
+  // when cards above and below leave a short, wide space — fill the width
+  // and pan vertically instead. Only one axis ever overflows.
   // Pinch-to-zoom is handled by the ScrollView's own native zoom (iOS only —
   // that's the platform this ships to the store on; Android/web just keep
   // the existing pan-only behavior, no regression there either) rather than
   // a hand-rolled gesture-handler reimplementation, since a custom Pan
   // gesture over the pins ended up swallowing taps meant for them.
-  const scale = viewportHeight > 0 ? viewportHeight / CROPPED_HEIGHT : 0;
+  const viewportHeight = viewport.height;
+  const scale =
+    viewport.height > 0 ? Math.max(viewport.height / CROPPED_HEIGHT, viewport.width / CROPPED_WIDTH) : 0;
+  const panHorizontally = CROPPED_WIDTH * scale > viewport.width + 1;
   const displayWidth = CROPPED_WIDTH * scale;
+  const displayHeight = CROPPED_HEIGHT * scale;
   const imageDisplayHeight = IMAGE_HEIGHT * scale;
   const imageTopOffset = -(CROP_TOP * scale);
 
@@ -113,15 +119,19 @@ export default function UsMap({ parks, onPressPark }: Props) {
     <View style={styles.viewport} onLayout={onLayout}>
       {scale > 0 && (
         <ScrollView
-          horizontal
+          key={panHorizontally ? 'h' : 'v'}
+          horizontal={panHorizontally}
           showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
           style={styles.scroll}
-          contentContainerStyle={{ width: displayWidth }}
+          contentContainerStyle={{ width: displayWidth, height: displayHeight }}
+          // Panning vertically, start on the lower 48 rather than Alaska.
+          contentOffset={panHorizontally ? undefined : { x: 0, y: (displayHeight - viewportHeight) / 2 }}
           minimumZoomScale={1}
           maximumZoomScale={3}
           bouncesZoom
         >
-          <View style={{ width: displayWidth, height: viewportHeight, overflow: 'hidden' }}>
+          <View style={{ width: displayWidth, height: displayHeight, overflow: 'hidden' }}>
             <Image
               source={require('@/assets/maps/us-map.png')}
               style={{ width: displayWidth, height: imageDisplayHeight, marginTop: imageTopOffset }}

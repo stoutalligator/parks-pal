@@ -1,13 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { useApp } from '@/context/AppContext';
 import { colors, spacing, radius, shadows, typography } from '@/theme';
 import ProgressRing from '@/components/ProgressRing';
 import UsMap from '@/components/UsMap';
 import SegmentedToggle from '@/components/SegmentedToggle';
 import EventNoticeCard from '@/components/EventNoticeCard';
+import HomeCustomizeSheet, { HomeCardOption } from '@/components/HomeCustomizeSheet';
 import PrimaryButton from '@/components/PrimaryButton';
 import { getParkImage } from '@/data/parkImages';
 import { daysUntil, dayCountBetween, formatDateRange } from '@/utils/dates';
@@ -23,10 +26,46 @@ const STATUS_MAP: Partial<Record<Filter, ParkStatus>> = {
   Planned: 'planned',
 };
 
+// Which Home cards this device has hidden (the event notice is tracked per
+// notice in AppContext instead, so a new notice still shows).
+const HIDDEN_CARDS_KEY = 'parkpal.homeHiddenCards';
+type HideableCard = 'trip' | 'progress';
+
+function SlidersIcon() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24">
+      <Path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke={colors.textPrimary} strokeWidth={2} strokeLinecap="round" />
+      <Circle cx="16" cy="7" r="2.2" fill="none" stroke={colors.textPrimary} strokeWidth={2} />
+      <Circle cx="10" cy="17" r="2.2" fill="none" stroke={colors.textPrimary} strokeWidth={2} />
+    </Svg>
+  );
+}
+
 export default function HomeScreen() {
-  const { parks, stats, trips, isGuest, eventNotice, dismissEventNotice } = useApp();
+  const { parks, stats, trips, isGuest, eventNotice, liveEventNotice, setEventNoticeHidden } = useApp();
   const navigation = useNavigation<any>();
   const [filter, setFilter] = useState<Filter>('All Parks');
+  const [customizing, setCustomizing] = useState(false);
+  const [hiddenCards, setHiddenCards] = useState<HideableCard[]>([]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(HIDDEN_CARDS_KEY)
+      .then((raw) => {
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(parsed)) setHiddenCards(parsed.filter((c): c is HideableCard => c === 'trip' || c === 'progress'));
+      })
+      .catch(() => {});
+  }, []);
+
+  const setCardShown = (card: HideableCard, shown: boolean) => {
+    setHiddenCards((prev) => {
+      const next = shown ? prev.filter((c) => c !== card) : [...prev.filter((c) => c !== card), card];
+      AsyncStorage.setItem(HIDDEN_CARDS_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
+  const showTrip = !hiddenCards.includes('trip');
+  const showProgress = !hiddenCards.includes('progress');
 
   // The soonest planned trip that hasn't started yet (today counts).
   const nextTrip = useMemo(
@@ -49,10 +88,46 @@ export default function HomeScreen() {
     navigation.navigate('ParkDetail', { parkId });
   };
 
+  const cardOptions: HomeCardOption[] = [
+    ...(liveEventNotice
+      ? [{
+          key: 'notice',
+          label: 'Event notice',
+          description: liveEventNotice.title,
+          shown: !!eventNotice,
+          onChange: (shown: boolean) => setEventNoticeHidden(liveEventNotice.id, !shown),
+        }]
+      : []),
+    ...(isGuest
+      ? []
+      : [{
+          key: 'trip',
+          label: 'Upcoming trip',
+          description: 'Countdown to your next planned trip',
+          shown: showTrip,
+          onChange: (shown: boolean) => setCardShown('trip', shown),
+        }]),
+    {
+      key: 'progress',
+      label: isGuest ? 'Sign-up card' : 'Your progress',
+      description: isGuest ? 'Create a free account to start tracking' : 'Parks visited and your progress ring',
+      shown: showProgress,
+      onChange: (shown: boolean) => setCardShown('progress', shown),
+    },
+  ];
+
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Explore</Text>
+        <TouchableOpacity
+          style={styles.customizeBtn}
+          onPress={() => setCustomizing(true)}
+          hitSlop={8}
+          accessibilityLabel="Customize Home"
+        >
+          <SlidersIcon />
+        </TouchableOpacity>
       </View>
 
       {eventNotice && (
@@ -60,7 +135,7 @@ export default function HomeScreen() {
           <EventNoticeCard
             notice={eventNotice}
             onOpenPark={goToPark}
-            onDismiss={() => dismissEventNotice(eventNotice.id)}
+            onDismiss={() => setEventNoticeHidden(eventNotice.id, true)}
           />
         </View>
       )}
@@ -71,7 +146,7 @@ export default function HomeScreen() {
 
       <UsMap parks={filteredParks} onPressPark={goToPark} />
 
-      {nextTrip && nextTripPark && (
+      {showTrip && nextTrip && nextTripPark && (
         <TouchableOpacity
           style={styles.countdownCard}
           activeOpacity={0.85}
@@ -99,7 +174,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
-      {isGuest ? (
+      {showProgress && (isGuest ? (
         <View style={[styles.progressCard, styles.nudgeCard]}>
           <View style={styles.nudgeText}>
             <Text style={styles.nudgeTitle}>Start your park passport</Text>
@@ -129,7 +204,9 @@ export default function HomeScreen() {
             resizeMode="contain"
           />
         </View>
-      )}
+      ))}
+
+      <HomeCustomizeSheet visible={customizing} options={cardOptions} onClose={() => setCustomizing(false)} />
     </SafeAreaView>
   );
 }
@@ -138,9 +215,21 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing['2xl'],
     paddingBottom: spacing.md,
+  },
+  customizeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.sm,
   },
   title: { ...typography.h3, color: colors.textPrimary },
 
