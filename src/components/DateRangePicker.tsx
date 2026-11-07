@@ -7,6 +7,10 @@ interface Props {
   startDate: string;
   endDate: string;
   onChange: (startDate: string, endDate: string) => void;
+  /** Earliest selectable day, "YYYY-MM-DD" (e.g. today for a planned trip). */
+  minDate?: string;
+  /** Latest selectable day, "YYYY-MM-DD" (e.g. today for a logged trip). */
+  maxDate?: string;
 }
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -40,7 +44,7 @@ function ArrowIcon({ direction }: { direction: 'left' | 'right' }) {
 // calendar overlay would visually blow out past the app's own edges. Inline
 // content can never do that, and the outer accordion already provides the
 // open/close affordance this needs.
-export default function DateRangePicker({ startDate, endDate, onChange }: Props) {
+export default function DateRangePicker({ startDate, endDate, onChange, minDate, maxDate }: Props) {
   const [viewMonth, setViewMonth] = useState(() => {
     const base = startDate ? new Date(startDate) : new Date();
     return new Date(base.getFullYear(), base.getMonth(), 1);
@@ -149,6 +153,7 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
           const isStart = key === startDate;
           const isEnd = key === rangeEnd;
           const inRange = !!startDate && key >= startDate && key <= rangeEnd;
+          const outOfRange = (!!minDate && key < minDate) || (!!maxDate && key > maxDate);
           return (
             <TouchableOpacity
               key={i}
@@ -159,9 +164,10 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
                 isEnd && !isStart && styles.dayCellEnd,
               ]}
               onPress={() => handleDayPress(key)}
+              disabled={outOfRange}
               activeOpacity={0.75}
             >
-              <Text style={[styles.dayText, (isStart || isEnd) && styles.dayTextSelected]}>
+              <Text style={[styles.dayText, outOfRange && styles.dayTextDisabled, (isStart || isEnd) && styles.dayTextSelected]}>
                 {date.getDate()}
               </Text>
             </TouchableOpacity>
@@ -209,6 +215,7 @@ const styles = StyleSheet.create({
   dayCellStart: { backgroundColor: colors.primary, borderRadius: radius.full },
   dayCellEnd: { backgroundColor: colors.primary, borderRadius: radius.full },
   dayText: { ...typography.bodySmall, color: colors.textPrimary },
+  dayTextDisabled: { color: colors.border },
   dayTextSelected: { color: colors.textInverse, fontFamily: typography.labelBold.fontFamily },
 
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap' },

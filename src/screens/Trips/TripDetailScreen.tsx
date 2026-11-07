@@ -9,7 +9,7 @@ import { colors, spacing, radius, shadows, typography } from '@/theme';
 import { getParkById } from '@/data/parks';
 import { getParkScene } from '@/data/parkImages';
 import { convertMiles, convertFeet, distanceLabel, elevationLabel } from '@/utils/units';
-import { parseLocalDate, daysUntilLabel } from '@/utils/dates';
+import { parseLocalDate, daysUntil, daysUntilLabel } from '@/utils/dates';
 import PrimaryButton from '@/components/PrimaryButton';
 import RecapPreview from '@/components/RecapPreview';
 import NpsAlertsCard from '@/components/NpsAlertsCard';
@@ -208,7 +208,11 @@ export default function TripDetailScreen({ route, navigation }: Props) {
               <PrimaryButton
                 label="MARK AS COMPLETED"
                 onPress={() => (navigation as any).navigate('LogTripForm', { completeTripId: trip.id })}
+                disabled={daysUntil(trip.startDate) > 0}
               />
+              {daysUntil(trip.startDate) > 0 && (
+                <Text style={styles.plannedHint}>You can mark it completed once your trip starts.</Text>
+              )}
             </View>
           )}
 
@@ -427,6 +431,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   plannedDaysUntil: { ...typography.labelBold, color: colors.sky, textAlign: 'center' },
+  plannedHint: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
   section: { gap: spacing.sm },
   sectionTitle: { ...typography.h5, color: colors.textPrimary },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
