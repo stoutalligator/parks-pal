@@ -323,6 +323,16 @@ export default function TripDetailScreen({ route, navigation }: Props) {
                       ))}
                     </View>
                   )}
+
+                  {(day.floraSightings?.length ?? 0) > 0 && (
+                    <View style={[styles.tagRow, styles.dayCardRowSpaced]}>
+                      {day.floraSightings?.map((f) => (
+                        <View key={f} style={[styles.tag, styles.tagFlora]}>
+                          <Text style={[styles.tagText, styles.tagTextFlora]}>{f}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -422,6 +432,8 @@ const styles = StyleSheet.create({
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tag: { backgroundColor: colors.surfaceWarm, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   tagWildlife: { backgroundColor: colors.surfaceWarm },
+  tagFlora: { backgroundColor: colors.roseTint },
+  tagTextFlora: { color: colors.roseDark },
   tagText: { ...typography.labelSmall, color: colors.primary },
   tagTextWildlife: { color: colors.orange },
   tagCaption: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },

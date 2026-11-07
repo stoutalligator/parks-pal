@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Seeds the `parks`, `badges`, `trails`, `animals`, `trail_details`, and
-// `animal_details` reference tables in Supabase from the existing local mock
+// Seeds the `parks`, `badges`, `trails`, `animals`, `trail_details`,
+// `animal_details`, `plants` and `plant_details` reference tables in Supabase from the existing local mock
 // data files and docs/compendium-research/*.json, so they stay the single
 // source of truth instead of being retyped in SQL.
 //
@@ -11,7 +11,7 @@
 import path from 'node:path';
 import WebSocket from 'ws';
 import { createClient } from '@supabase/supabase-js';
-import { ROOT, extractArrayLiteral, buildContentRows } from './lib/content-rows.mjs';
+import { ROOT, extractArrayLiteral, buildContentRows, buildPlantRows } from './lib/content-rows.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -82,6 +82,10 @@ async function main() {
   await seedContent('animals', rows.animals);
   await seedContent('trail_details', rows.trail_details);
   await seedContent('animal_details', rows.animal_details);
+  // Last, and only once the Field Guide migration has created the plant tables.
+  const plantRows = buildPlantRows();
+  await seedContent('plants', plantRows.plants);
+  await seedContent('plant_details', plantRows.plant_details);
   console.log('Seed complete.');
 }
 

@@ -21,9 +21,10 @@ import HomeScreen from '@/screens/Home/HomeScreen';
 import ExploreScreen from '@/screens/Explore/ExploreScreen';
 import ParkDetailScreen from '@/screens/ParkDetail/ParkDetailScreen';
 import ParkTrailsScreen from '@/screens/ParkDetail/ParkTrailsScreen';
-import ParkAnimalsScreen from '@/screens/ParkDetail/ParkAnimalsScreen';
+import FieldGuideScreen from '@/screens/ParkDetail/FieldGuideScreen';
 import TrailDetailScreen from '@/screens/ParkDetail/TrailDetailScreen';
 import AnimalDetailScreen from '@/screens/ParkDetail/AnimalDetailScreen';
+import PlantDetailScreen from '@/screens/ParkDetail/PlantDetailScreen';
 import TripChooserScreen from '@/screens/LogTrip/TripChooserScreen';
 import LogTripScreen from '@/screens/LogTrip/LogTripScreen';
 import TripsScreen from '@/screens/Trips/TripsScreen';
@@ -54,9 +55,10 @@ function HomeStackNav() {
       <HomeStack.Screen name="Home" component={HomeScreen} />
       <HomeStack.Screen name="ParkDetail" component={ParkDetailScreen} />
       <HomeStack.Screen name="ParkTrails" component={ParkTrailsScreen} />
-      <HomeStack.Screen name="ParkAnimals" component={ParkAnimalsScreen} />
+      <HomeStack.Screen name="FieldGuide" component={FieldGuideScreen} />
       <HomeStack.Screen name="TrailDetail" component={TrailDetailScreen} />
       <HomeStack.Screen name="AnimalDetail" component={AnimalDetailScreen} />
+      <HomeStack.Screen name="PlantDetail" component={PlantDetailScreen} />
       <HomeStack.Screen name="TripDetail" component={TripDetailScreen} />
       <HomeStack.Screen name="LogTripForm" component={LogTripScreen} />
     </HomeStack.Navigator>
@@ -69,9 +71,10 @@ function ParksStackNav() {
       <ParksStack.Screen name="Explore" component={ExploreScreen} />
       <ParksStack.Screen name="ParkDetail" component={ParkDetailScreen} />
       <ParksStack.Screen name="ParkTrails" component={ParkTrailsScreen} />
-      <ParksStack.Screen name="ParkAnimals" component={ParkAnimalsScreen} />
+      <ParksStack.Screen name="FieldGuide" component={FieldGuideScreen} />
       <ParksStack.Screen name="TrailDetail" component={TrailDetailScreen} />
       <ParksStack.Screen name="AnimalDetail" component={AnimalDetailScreen} />
+      <ParksStack.Screen name="PlantDetail" component={PlantDetailScreen} />
       <ParksStack.Screen name="TripDetail" component={TripDetailScreen} />
       <ParksStack.Screen name="LogTripForm" component={LogTripScreen} />
     </ParksStack.Navigator>
@@ -111,9 +114,10 @@ function ProfileStackNav() {
       <ProfileStack.Screen name="TripDetail" component={TripDetailScreen} />
       <ProfileStack.Screen name="ParkDetail" component={ParkDetailScreen} />
       <ProfileStack.Screen name="ParkTrails" component={ParkTrailsScreen} />
-      <ProfileStack.Screen name="ParkAnimals" component={ParkAnimalsScreen} />
+      <ProfileStack.Screen name="FieldGuide" component={FieldGuideScreen} />
       <ProfileStack.Screen name="TrailDetail" component={TrailDetailScreen} />
       <ProfileStack.Screen name="AnimalDetail" component={AnimalDetailScreen} />
+      <ProfileStack.Screen name="PlantDetail" component={PlantDetailScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStack.Screen name="EditGoal" component={EditGoalScreen} />

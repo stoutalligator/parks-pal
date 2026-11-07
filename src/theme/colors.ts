@@ -20,6 +20,9 @@ export const colors = {
   orange: '#D4845A',
   orangeDark: '#A35A33',
   rose: '#C4847A',
+  // Field Guide bloom pills: a soft rose fill with readable rose text.
+  roseTint: '#F7ECE9',
+  roseDark: '#8E4F45',
   brown: '#8B6340',
   brownDark: '#5C4028',
 

@@ -140,6 +140,17 @@ create table public.animals (
   rarity text not null check (rarity in ('Common', 'Uncommon', 'Rare'))
 );
 
+create table public.plants (
+  id text primary key,
+  park_id text not null references public.parks(id) on delete cascade,
+  name text not null,
+  description text not null default '',
+  rarity text not null check (rarity in ('Common', 'Uncommon', 'Rare')),
+  type text not null check (type in ('Wildflower', 'Tree', 'Shrub', 'Cactus', 'Succulent', 'Fern', 'Grass', 'Vine')),
+  -- Months it blooms, 1 = January; empty for plants grown for leaves or cones.
+  bloom_months smallint[] not null default '{}'
+);
+
 -- Researched enrichment data, keyed 1:1 to a trail/animal id — kept as
 -- separate tables (rather than jsonb columns on trails/animals) so the base
 -- "how many cards to render" queries stay small, and so a trail/animal with
@@ -168,6 +179,19 @@ create table public.animal_details (
   tags jsonb not null default '[]',
   viewing_tip text not null,
   did_you_know text not null,
+  last_verified text
+);
+
+create table public.plant_details (
+  id text primary key references public.plants(id) on delete cascade,
+  scientific_name text not null,
+  where_to_look text not null,
+  -- A named nature trail or exhibit where the park features this plant.
+  nature_trail text,
+  tags jsonb not null default '[]',
+  id_tip text not null,
+  did_you_know text not null,
+  caution text,
   last_verified text
 );
 
@@ -205,6 +229,17 @@ create table public.user_animal_sightings (
   spotted_at timestamptz not null default now()
 );
 
+create table public.user_plant_sightings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  plant_id text references public.plants(id) on delete set null,
+  trip_id uuid references public.trips(id) on delete cascade,
+  park_id text not null references public.parks(id) on delete cascade,
+  name text not null,
+  day_number smallint,
+  spotted_at timestamptz not null default now()
+);
+
 -- Activities are per-day (unlike the legacy `trips.activities` text[], which
 -- is still written as a flattened aggregate for backward compatibility with
 -- badge rules) so each one can carry its own optional free-text viewpoint —
@@ -234,7 +269,7 @@ create table public.trip_day_weather (
 create table public.content_reports (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  entry_type text not null check (entry_type in ('trail', 'animal')),
+  entry_type text not null check (entry_type in ('trail', 'animal', 'plant')),
   entry_id text not null,
   entry_name text not null,
   park_id text not null references public.parks(id) on delete cascade,
@@ -304,6 +339,9 @@ alter table public.trail_details enable row level security;
 alter table public.animal_details enable row level security;
 alter table public.user_trail_completions enable row level security;
 alter table public.user_animal_sightings enable row level security;
+alter table public.plants enable row level security;
+alter table public.plant_details enable row level security;
+alter table public.user_plant_sightings enable row level security;
 alter table public.trip_day_activities enable row level security;
 alter table public.trip_day_weather enable row level security;
 alter table public.content_reports enable row level security;
@@ -324,6 +362,10 @@ create policy "animals are publicly readable" on public.animals
 create policy "trail details are publicly readable" on public.trail_details
   for select using (true);
 create policy "animal details are publicly readable" on public.animal_details
+  for select using (true);
+create policy "plants are publicly readable" on public.plants
+  for select using (true);
+create policy "plant details are publicly readable" on public.plant_details
   for select using (true);
 
 create policy "users manage their own profile" on public.profiles
@@ -355,6 +397,9 @@ create policy "users manage their own trail completions" on public.user_trail_co
 create policy "users manage their own animal sightings" on public.user_animal_sightings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+create policy "users manage their own plant sightings" on public.user_plant_sightings
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 create policy "users manage their own trip day activities" on public.trip_day_activities
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -384,6 +429,8 @@ grant select on public.trails to anon, authenticated;
 grant select on public.animals to anon, authenticated;
 grant select on public.trail_details to anon, authenticated;
 grant select on public.animal_details to anon, authenticated;
+grant select on public.plants to anon, authenticated;
+grant select on public.plant_details to anon, authenticated;
 
 grant select, insert, update, delete on public.profiles to authenticated;
 grant select, insert, update, delete on public.user_park_status to authenticated;
@@ -392,6 +439,7 @@ grant select, insert, update, delete on public.trip_photos to authenticated;
 grant select, insert, update, delete on public.user_badges to authenticated;
 grant select, insert, update, delete on public.user_trail_completions to authenticated;
 grant select, insert, update, delete on public.user_animal_sightings to authenticated;
+grant select, insert, update, delete on public.user_plant_sightings to authenticated;
 grant select, insert, update, delete on public.trip_day_activities to authenticated;
 grant select, insert, update, delete on public.trip_day_weather to authenticated;
 grant insert on public.content_reports to authenticated;

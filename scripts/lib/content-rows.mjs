@@ -37,6 +37,57 @@ export function extractArrayLiteral(filePath, exportName) {
   return new Function(`return ${arrayLiteral};`)();
 }
 
+// Same idea for a `export const NAME: Record<...> = {...}` object literal.
+export function extractObjectLiteral(filePath, exportName) {
+  const src = fs.readFileSync(filePath, 'utf8');
+  const startIdx = src.indexOf(`export const ${exportName}`);
+  if (startIdx === -1) throw new Error(`Could not find "${exportName}" in ${filePath}`);
+  const objStart = src.indexOf('{', src.indexOf('=', startIdx));
+  let depth = 0;
+  let i = objStart;
+  for (; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        i++;
+        break;
+      }
+    }
+  }
+  // eslint-disable-next-line no-new-func -- trusted local project source file
+  return new Function(`return ${src.slice(objStart, i)};`)();
+}
+
+// Field Guide plant tables, kept apart from buildContentRows() so db-diff and
+// older databases without the plant tables are unaffected.
+export function buildPlantRows() {
+  const plants = extractArrayLiteral(path.join(ROOT, 'src/data/plants.ts'), 'ALL_PLANTS');
+  const details = extractObjectLiteral(path.join(ROOT, 'src/data/plantDetails.ts'), 'PLANT_DETAILS');
+  return {
+    plants: plants.map((p) => ({
+      id: p.id,
+      park_id: p.parkId,
+      name: p.name,
+      description: p.description,
+      rarity: p.rarity,
+      type: p.type,
+      bloom_months: p.bloomMonths,
+    })),
+    plant_details: Object.values(details).map((d) => ({
+      id: d.id,
+      scientific_name: d.scientificName,
+      where_to_look: d.whereToLook,
+      nature_trail: d.natureTrail ?? null,
+      tags: d.tags,
+      id_tip: d.idTip,
+      did_you_know: d.didYouKnow,
+      caution: d.caution ?? null,
+      last_verified: d.lastVerified ?? null,
+    })),
+  };
+}
+
 // Reads the per-park research files directly (the actual authoring source),
 // rather than the generated src/data/trailDetails.ts / animalDetails.ts,
 // which exist to serve the bundled-app fallback, not the database.

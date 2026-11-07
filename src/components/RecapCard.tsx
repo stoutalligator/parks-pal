@@ -114,6 +114,8 @@ const RecapCard = forwardRef<View, Props>(function RecapCard({ trip, units, onPh
     });
   }
   if (animals.length > 0) stats.push({ value: String(animals.length), label: 'Animals' });
+  const plantCount = new Set(trip.floraSightings ?? []).size;
+  if (plantCount > 0 && stats.length < 5) stats.push({ value: String(plantCount), label: 'Plants' });
 
   return (
     <View ref={ref} collapsable={false} style={styles.card}>

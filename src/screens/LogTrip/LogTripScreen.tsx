@@ -18,6 +18,7 @@ import {
   WeatherType,
   Trail,
   Animal,
+  Plant,
   Units,
 } from '@/types';
 import { getParkGuide } from '@/data/parkGuides';
@@ -28,6 +29,8 @@ import { showToast } from '@/components/Toast';
 import { convertMiles, convertFeet, toMiles, toFeet, distanceLabel, elevationLabel } from '@/utils/units';
 import { formatDateRange, addDays, dayCountBetween, parseLocalDate } from '@/utils/dates';
 import { successHaptic } from '@/utils/haptics';
+import { MONTH_ABBR, isInBloom } from '@/utils/bloom';
+import { FieldGuideIcon, FlowerIcon } from '@/components/FieldGuideIcons';
 
 type FormMode = 'plan' | 'log' | 'complete';
 
@@ -570,11 +573,12 @@ interface DayFormState {
   activities: TripDayActivity[];
   trails: TripTrailEntry[];
   wildlife: string[];
+  flora: string[];
   weather?: WeatherType;
 }
 
 function emptyDay(): DayFormState {
-  return { activities: [], trails: [], wildlife: [] };
+  return { activities: [], trails: [], wildlife: [], flora: [] };
 }
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -587,18 +591,179 @@ interface DayPageProps {
   units: Units;
   parkTrails: Trail[];
   parkAnimals: Animal[];
+  parkPlants: Plant[];
+  /** Calendar month of this day (1 = January), for the in-bloom dots. */
+  month: number;
   parkActivities: ParkActivityType[];
   value: DayFormState;
   onChange: (next: DayFormState) => void;
   width: number;
 }
 
+type DaySectionKey = 'trails' | 'discoveries' | 'weather';
+
+// A collapsible group on a day page: a one-line summary while closed, so a
+// day reads at a glance and the page stays short.
+function DaySection({
+  icon,
+  title,
+  summary,
+  filled,
+  expanded,
+  onToggle,
+  children,
+}: {
+  icon: React.ReactElement;
+  title: string;
+  summary: string;
+  filled: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={[styles.daySection, expanded && styles.daySectionOpen]}>
+      <TouchableOpacity
+        style={styles.daySectionHeader}
+        onPress={onToggle}
+        activeOpacity={0.75}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+      >
+        <View style={styles.daySectionIcon}>{icon}</View>
+        <View style={styles.daySectionText}>
+          <Text style={styles.daySectionTitle}>{title}</Text>
+          <Text style={[styles.daySectionSummary, filled && styles.daySectionSummaryFilled]} numberOfLines={1}>
+            {summary}
+          </Text>
+        </View>
+        <ChevronIcon expanded={expanded} />
+      </TouchableOpacity>
+      {expanded && <View style={styles.daySectionBody}>{children}</View>}
+    </View>
+  );
+}
+
+interface DiscoveryChip {
+  key: string;
+  name: string;
+  blooming?: boolean;
+}
+
+// One Fauna or Flora group on a day page: the park's chips, then a small
+// "add one we don't list" link that opens an input, with custom entries
+// (names not in the park's list) shown as removable tags.
+function DiscoveryPanel({
+  icon,
+  title,
+  legend,
+  chips,
+  selected,
+  onToggle,
+  addLabel,
+  placeholder,
+}: {
+  icon: React.ReactElement;
+  title: string;
+  legend?: string;
+  chips: DiscoveryChip[];
+  selected: string[];
+  onToggle: (name: string) => void;
+  addLabel: string;
+  placeholder: string;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [input, setInput] = useState('');
+  const isSelected = (name: string) => selected.some((n) => n.toLowerCase() === name.toLowerCase());
+  const custom = selected.filter((n) => !chips.some((c) => c.name.toLowerCase() === n.toLowerCase()));
+
+  const add = () => {
+    const trimmed = input.trim();
+    if (trimmed && !isSelected(trimmed)) onToggle(trimmed);
+    setInput('');
+    setAdding(false);
+  };
+
+  return (
+    <View style={styles.discoveryPanel}>
+      <View style={styles.discoveryHeader}>
+        {icon}
+        <Text style={styles.discoveryTitle}>{title}</Text>
+        {selected.length > 0 && (
+          <View style={styles.discoveryCount}>
+            <Text style={styles.discoveryCountText}>{selected.length}</Text>
+          </View>
+        )}
+        {legend ? (
+          <View style={styles.discoveryLegend}>
+            <View style={styles.bloomDot} />
+            <Text style={styles.discoveryLegendText}>{legend}</Text>
+          </View>
+        ) : null}
+      </View>
+      {chips.length > 0 && (
+        <View style={styles.discoveryChipRow}>
+          {chips.map((chip) => {
+            const active = isSelected(chip.name);
+            return (
+              <TouchableOpacity
+                key={chip.key}
+                style={[styles.animalChip, styles.discoveryChip, active && styles.animalChipActive]}
+                onPress={() => onToggle(chip.name)}
+                activeOpacity={0.8}
+              >
+                {chip.blooming && <View style={[styles.bloomDot, active && styles.bloomDotActive]} />}
+                <Text style={[styles.animalChipText, active && styles.animalChipTextActive]}>{chip.name}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+      {custom.length > 0 && (
+        <View style={styles.discoveryChipRow}>
+          {custom.map((name) => (
+            <View key={name} style={styles.customTag}>
+              <Text style={styles.customTagText}>{name}</Text>
+              <TouchableOpacity onPress={() => onToggle(name)} hitSlop={8} accessibilityLabel={`Remove ${name}`}>
+                <CloseIcon color={colors.textInverse} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+      {adding ? (
+        <View style={styles.wildlifeInputRow}>
+          <TextInput
+            style={[styles.wildlifeInput, styles.discoveryInput]}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textMuted}
+            value={input}
+            onChangeText={setInput}
+            onSubmitEditing={add}
+            onBlur={() => !input.trim() && setAdding(false)}
+            returnKeyType="done"
+            autoFocus
+          />
+          <TouchableOpacity style={[styles.wildlifeAddBtn, styles.discoveryAddBtn]} onPress={add} activeOpacity={0.8}>
+            <Text style={styles.wildlifeAddBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity onPress={() => setAdding(true)} hitSlop={6} activeOpacity={0.7}>
+          <Text style={styles.discoveryAddLink}>+ {addLabel}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 // The day pager's per-page content — this is the same picker UI the flat
 // form used to show once for the whole trip (activity chips + viewpoint,
 // trail picker with custom-add, wildlife picker with custom-add, weather),
 // just scoped to a single day's DayFormState instead of the whole trip.
-function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, parkActivities, value, onChange, width }: DayPageProps) {
-  const [wildlifeInput, setWildlifeInput] = useState('');
+function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, parkPlants, month, parkActivities, value, onChange, width }: DayPageProps) {
+  const [openSection, setOpenSection] = useState<DaySectionKey | null>(null);
+  const [addingTrail, setAddingTrail] = useState(false);
   const [customTrailName, setCustomTrailName] = useState('');
   const [customTrailMiles, setCustomTrailMiles] = useState('');
   const [customTrailElevation, setCustomTrailElevation] = useState('');
@@ -674,6 +839,7 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
     setCustomTrailName('');
     setCustomTrailMiles('');
     setCustomTrailElevation('');
+    setAddingTrail(false);
   };
 
   const removeTrail = (entry: TripTrailEntry) => {
@@ -701,20 +867,6 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
     setEditingTrailKey(null);
   };
 
-  const addWildlifeSighting = () => {
-    const trimmed = wildlifeInput.trim();
-    if (!trimmed || value.wildlife.some((w) => w.toLowerCase() === trimmed.toLowerCase())) {
-      setWildlifeInput('');
-      return;
-    }
-    onChange({ ...value, wildlife: [...value.wildlife, trimmed] });
-    setWildlifeInput('');
-  };
-
-  const removeWildlifeSighting = (sighting: string) => {
-    onChange({ ...value, wildlife: value.wildlife.filter((w) => w !== sighting) });
-  };
-
   const toggleAnimal = (name: string) => {
     const exists = value.wildlife.some((w) => w.toLowerCase() === name.toLowerCase());
     onChange({
@@ -724,6 +876,35 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
         : [...value.wildlife, name],
     });
   };
+
+  const togglePlant = (name: string) => {
+    const exists = value.flora.some((f) => f.toLowerCase() === name.toLowerCase());
+    onChange({
+      ...value,
+      flora: exists ? value.flora.filter((f) => f.toLowerCase() !== name.toLowerCase()) : [...value.flora, name],
+    });
+  };
+
+  const plantChips: DiscoveryChip[] = parkPlants
+    .map((p) => ({ key: p.id, name: p.name, blooming: isInBloom(p, month) }))
+    .sort((a, b) => Number(b.blooming) - Number(a.blooming));
+  const anyBlooming = plantChips.some((c) => c.blooming);
+
+  const toggleSection = (key: DaySectionKey) => setOpenSection((cur) => (cur === key ? null : key));
+  const trailMiles = value.trails.reduce((acc, t) => acc + t.miles, 0);
+  const trailSummary = value.trails.length
+    ? `${value.trails.length} ${value.trails.length === 1 ? 'trail' : 'trails'} · ${convertMiles(trailMiles, units).toFixed(1)} ${distanceLabel(units)}`
+    : mode === 'plan'
+      ? 'Pick trails you want to hike'
+      : 'Pick the trails you hiked';
+  const discoverySummary = (() => {
+    const parts: string[] = [];
+    if (value.wildlife.length) parts.push(`${value.wildlife.length} ${value.wildlife.length === 1 ? 'animal' : 'animals'}`);
+    if (value.flora.length) parts.push(`${value.flora.length} ${value.flora.length === 1 ? 'plant' : 'plants'}`);
+    if (parts.length) return parts.join(' · ');
+    return parkPlants.length ? 'Animals and plants you spotted' : 'Animals you spotted';
+  })();
+  const weatherLabel = WEATHER_OPTIONS.find((w) => w.type === value.weather)?.label;
 
   const toggleWeather = (type: WeatherType) => {
     onChange({ ...value, weather: value.weather === type ? undefined : type });
@@ -810,10 +991,15 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
             affect stats/badges, since those only ever look at logged trips,
             but it lets someone map out which trails they want each day
             before the trip happens. */}
-        <>
-            <Text style={[styles.sublabel, styles.sublabelSpaced]}>
-              {mode === 'plan' ? "Trails you'd like to hike" : 'Trails'}
-            </Text>
+        <View style={styles.daySectionStack}>
+        <DaySection
+          icon={<BootIcon color={colors.brown} size={20} />}
+          title={mode === 'plan' ? "Trails you'd like to hike" : 'Trails'}
+          summary={trailSummary}
+          filled={value.trails.length > 0}
+          expanded={openSection === 'trails'}
+          onToggle={() => toggleSection('trails')}
+        >
             {parkTrails.length > 0 && (
               <View style={styles.trailList}>
                 {parkTrails.map((trail) => {
@@ -835,39 +1021,47 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
               </View>
             )}
 
-            <Text style={[styles.sublabel, styles.sublabelSpaced]}>Add a trail we don't have</Text>
-            <TextInput
-              style={[styles.wildlifeInput, styles.customTrailNameInput]}
-              placeholder="Trail name"
-              placeholderTextColor={colors.textMuted}
-              value={customTrailName}
-              onChangeText={setCustomTrailName}
-            />
-            <View style={styles.customTrailRow}>
-              <TextInput
-                style={[styles.wildlifeInput, styles.customTrailNumberInput]}
-                placeholder={distanceLabel(units) === 'mi' ? 'Miles' : 'Kilometers'}
-                placeholderTextColor={colors.textMuted}
-                keyboardType="decimal-pad"
-                value={customTrailMiles}
-                onChangeText={setCustomTrailMiles}
-              />
-              <TextInput
-                style={[styles.wildlifeInput, styles.customTrailNumberInput]}
-                placeholder={`Elev. ${elevationLabel(units)}`}
-                placeholderTextColor={colors.textMuted}
-                keyboardType="decimal-pad"
-                value={customTrailElevation}
-                onChangeText={setCustomTrailElevation}
-              />
-              <TouchableOpacity style={styles.wildlifeAddBtn} onPress={addCustomTrail} activeOpacity={0.8}>
-                <Text style={styles.wildlifeAddBtnText}>+</Text>
+            {addingTrail ? (
+              <View style={styles.customTrailBox}>
+                <TextInput
+                  style={[styles.wildlifeInput, styles.customTrailNameInput]}
+                  placeholder="Trail name"
+                  placeholderTextColor={colors.textMuted}
+                  value={customTrailName}
+                  onChangeText={setCustomTrailName}
+                  autoFocus
+                />
+                <View style={styles.customTrailRow}>
+                  <TextInput
+                    style={[styles.wildlifeInput, styles.customTrailNumberInput]}
+                    placeholder={distanceLabel(units) === 'mi' ? 'Miles' : 'Kilometers'}
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="decimal-pad"
+                    value={customTrailMiles}
+                    onChangeText={setCustomTrailMiles}
+                  />
+                  <TextInput
+                    style={[styles.wildlifeInput, styles.customTrailNumberInput]}
+                    placeholder={`Elev. ${elevationLabel(units)}`}
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="decimal-pad"
+                    value={customTrailElevation}
+                    onChangeText={setCustomTrailElevation}
+                  />
+                  <TouchableOpacity style={styles.wildlifeAddBtn} onPress={addCustomTrail} activeOpacity={0.8}>
+                    <Text style={styles.wildlifeAddBtnText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => setAddingTrail(true)} hitSlop={6} activeOpacity={0.7}>
+                <Text style={styles.discoveryAddLink}>+ Add a trail we don't have</Text>
               </TouchableOpacity>
-            </View>
+            )}
 
             {value.trails.length > 0 && (
               <>
-                <Text style={[styles.sublabel, styles.sublabelSpaced]}>Your Trails</Text>
+                <Text style={[styles.discoveryTitle, styles.yourTrailsLabel]}>Your trails</Text>
                 <View style={styles.trailSummaryList}>
                   {value.trails.map((entry) => {
                     const editing = editingTrailKey === trailKeyOf(entry);
@@ -923,56 +1117,51 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
                 </View>
               </>
             )}
-        </>
+        </DaySection>
 
         {mode !== 'plan' && (
           <>
-            <Text style={[styles.sublabel, styles.sublabelSpaced]}>Wildlife Spotted</Text>
-            {parkAnimals.length > 0 && (
-              <View style={styles.animalChipRow}>
-                {parkAnimals.map((animal) => {
-                  const active = value.wildlife.some((w) => w.toLowerCase() === animal.name.toLowerCase());
-                  return (
-                    <TouchableOpacity
-                      key={animal.id}
-                      style={[styles.animalChip, active && styles.animalChipActive]}
-                      onPress={() => toggleAnimal(animal.name)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.animalChipText, active && styles.animalChipTextActive]}>{animal.name}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-            <View style={styles.wildlifeInputRow}>
-              <TextInput
-                style={styles.wildlifeInput}
+            <DaySection
+              icon={<FieldGuideIcon size={20} />}
+              title="Discoveries"
+              summary={discoverySummary}
+              filled={value.wildlife.length + value.flora.length > 0}
+              expanded={openSection === 'discoveries'}
+              onToggle={() => toggleSection('discoveries')}
+            >
+            <View style={styles.discoveryStack}>
+              <DiscoveryPanel
+                icon={<PawIcon color={colors.brown} size={16} />}
+                title="Fauna"
+                chips={parkAnimals.map((a) => ({ key: a.id, name: a.name }))}
+                selected={value.wildlife}
+                onToggle={toggleAnimal}
+                addLabel="Add an animal we don't list"
                 placeholder="e.g. Elk, Moose, Bald Eagle..."
-                placeholderTextColor={colors.textMuted}
-                value={wildlifeInput}
-                onChangeText={setWildlifeInput}
-                onSubmitEditing={addWildlifeSighting}
-                returnKeyType="done"
               />
-              <TouchableOpacity style={styles.wildlifeAddBtn} onPress={addWildlifeSighting} activeOpacity={0.8}>
-                <Text style={styles.wildlifeAddBtnText}>+</Text>
-              </TouchableOpacity>
+              {parkPlants.length > 0 && (
+                <DiscoveryPanel
+                  icon={<FlowerIcon size={16} />}
+                  title="Flora"
+                  legend={anyBlooming ? `Blooms in ${MONTH_ABBR[month - 1]}` : undefined}
+                  chips={plantChips}
+                  selected={value.flora}
+                  onToggle={togglePlant}
+                  addLabel="Add a plant we don't list"
+                  placeholder="e.g. Wild Geranium, Bluebells..."
+                />
+              )}
             </View>
-            {value.wildlife.length > 0 && (
-              <View style={styles.wildlifeTagRow}>
-                {value.wildlife.map((sighting) => (
-                  <View key={sighting} style={styles.wildlifeTag}>
-                    <Text style={styles.wildlifeTagText}>{sighting}</Text>
-                    <TouchableOpacity onPress={() => removeWildlifeSighting(sighting)} hitSlop={8}>
-                      <CloseIcon color={colors.orange} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
+            </DaySection>
 
-            <Text style={[styles.sublabel, styles.sublabelSpaced]}>Weather</Text>
+            <DaySection
+              icon={<WeatherPartlyCloudyIcon color={colors.brown} size={20} />}
+              title="Weather"
+              summary={weatherLabel ?? 'How was the weather?'}
+              filled={!!weatherLabel}
+              expanded={openSection === 'weather'}
+              onToggle={() => toggleSection('weather')}
+            >
             <View style={styles.weatherRow}>
               {WEATHER_OPTIONS.map(({ type, label, render }) => {
                 const active = value.weather === type;
@@ -990,8 +1179,10 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
                 );
               })}
             </View>
+            </DaySection>
           </>
         )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -1000,13 +1191,13 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
 function buildDayEntriesMap(trip: { days?: TripDayEntry[] } | undefined): Record<number, DayFormState> {
   const map: Record<number, DayFormState> = {};
   trip?.days?.forEach((d) => {
-    map[d.dayNumber] = { activities: d.activities, trails: d.trailsHiked, wildlife: d.wildlifeSightings, weather: d.weather };
+    map[d.dayNumber] = { activities: d.activities, trails: d.trailsHiked, wildlife: d.wildlifeSightings, flora: d.floraSightings ?? [], weather: d.weather };
   });
   return map;
 }
 
 export default function LogTripScreen() {
-  const { parks, trips, trails, animals, logTrip, updateTrip, completeTrip, userProfile } = useApp();
+  const { parks, trips, trails, animals, plants, logTrip, updateTrip, completeTrip, userProfile } = useApp();
   const units = userProfile.units;
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -1098,6 +1289,7 @@ export default function LogTripScreen() {
   const parkAnimals = animals.filter((a) => a.parkId === selectedParkId).sort(
     (a, b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity]
   );
+  const parkPlants = plants.filter((p) => p.parkId === selectedParkId);
 
   const parkActivities = getParkGuide(selectedParkId)?.parkActivities ?? [];
 
@@ -1168,6 +1360,7 @@ export default function LogTripScreen() {
         activities: entry.activities,
         trailsHiked: entry.trails.map((t) => ({ ...t, dayNumber })),
         wildlifeSightings: entry.wildlife,
+        floraSightings: entry.flora,
         weather: entry.weather,
       };
     });
@@ -1446,6 +1639,8 @@ export default function LogTripScreen() {
                 units={units}
                 parkTrails={parkTrails}
                 parkAnimals={parkAnimals}
+                parkPlants={parkPlants}
+                month={parseLocalDate(addDays(startDate, dayNumber - 1)).getMonth() + 1}
                 parkActivities={parkActivities}
                 value={dayEntries[dayNumber] ?? emptyDay()}
                 onChange={(next) => setDayEntry(dayNumber, next)}
@@ -1554,27 +1749,44 @@ const styles = StyleSheet.create({
   trailSummaryMeta: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   trailSummaryEdit: { ...typography.labelSmall, color: colors.sage },
 
-  animalChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   animalChip: { backgroundColor: colors.surface, borderRadius: radius.full, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   animalChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
   animalChipText: { ...typography.labelSmall, color: colors.textSecondary },
   animalChipTextActive: { color: colors.textInverse },
+  bloomDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.rose },
+  bloomDotActive: { backgroundColor: colors.textInverse },
+  discoveryStack: { gap: spacing.md },
+  daySectionStack: { gap: spacing.sm, marginTop: spacing.lg },
+  daySection: { borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface },
+  daySectionOpen: { borderColor: colors.sage },
+  daySectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
+  daySectionIcon: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.surfaceWarm, alignItems: 'center', justifyContent: 'center' },
+  daySectionText: { flex: 1 },
+  daySectionTitle: { ...typography.labelBold, color: colors.textPrimary },
+  daySectionSummary: { ...typography.bodySmall, color: colors.textMuted, marginTop: 1 },
+  daySectionSummaryFilled: { color: colors.primary },
+  daySectionBody: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.md },
+  customTrailBox: { gap: spacing.sm },
+  yourTrailsLabel: { marginTop: spacing.xs },
+  discoveryPanel: { backgroundColor: colors.surfaceWarm, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
+  discoveryHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  discoveryTitle: { ...typography.labelBold, color: colors.textPrimary },
+  discoveryCount: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  discoveryCountText: { ...typography.caption, fontFamily: typography.labelBold.fontFamily, color: colors.textInverse },
+  discoveryLegend: { flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 'auto' },
+  discoveryLegendText: { ...typography.caption, color: colors.textSecondary },
+  discoveryChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  discoveryChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  customTag: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, backgroundColor: colors.primary, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  customTagText: { ...typography.labelSmall, color: colors.textInverse },
+  discoveryAddLink: { ...typography.labelSmall, color: colors.primary, paddingVertical: 2 },
+  discoveryInput: { padding: spacing.sm, shadowOpacity: 0, elevation: 0 },
+  discoveryAddBtn: { width: 38, height: 38 },
 
   wildlifeInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   wildlifeInput: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, ...typography.body, color: colors.textPrimary, ...shadows.sm },
   wildlifeAddBtn: { width: 44, height: 44, borderRadius: radius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', ...shadows.sm },
   wildlifeAddBtnText: { fontSize: 22, lineHeight: 24, color: colors.textInverse },
-  wildlifeTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
-  wildlifeTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.surfaceWarm,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  wildlifeTagText: { ...typography.labelSmall, color: colors.orange },
 
   notesBox: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, ...shadows.sm },
   notesInput: { ...typography.body, color: colors.textPrimary, minHeight: 80, textAlignVertical: 'top' },

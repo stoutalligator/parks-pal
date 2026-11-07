@@ -16,6 +16,7 @@ Prompts for generating illustrated art outside the repo (Midjourney, DALL-E, etc
 | [app-store-header.md](app-store-header.md) | App Store product page header (5244×2950 and 3840×1646). **Painterly style**, text added afterward | `Downloads` (upload to App Store Connect, not the app) |
 | [app-icon-splash.md](app-icon-splash.md) | App Store icon, splash, Android adaptive icon, favicon | `assets/` (project root) |
 | [rarity-scenes.md](rarity-scenes.md) | 3 shared animal-detail hero banners (concept, not wired yet) | `src/assets/animals/` |
+| [flora-scenes.md](flora-scenes.md) | 3 shared Field Guide plant-page hero banners | `src/assets/plants/` |
 
 ## Conventions shared by every file
 

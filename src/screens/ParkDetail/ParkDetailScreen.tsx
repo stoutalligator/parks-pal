@@ -15,6 +15,9 @@ import TripCard from '@/components/TripCard';
 import PrimaryButton from '@/components/PrimaryButton';
 import SecondaryButton from '@/components/SecondaryButton';
 import { tapHaptic } from '@/utils/haptics';
+import { FieldGuideIcon, FlowerIcon, PawIcon as SmallPawIcon } from '@/components/FieldGuideIcons';
+import { MONTH_ABBR, currentMonth, isInBloom } from '@/utils/bloom';
+import { FieldGuideTab } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<ParksStackParamList, 'ParkDetail'>;
 
@@ -62,6 +65,69 @@ function SummaryCard({
   );
 }
 
+function FieldGuideCard({
+  faunaFound,
+  faunaTotal,
+  floraFound,
+  floraTotal,
+  blooming,
+  onOpen,
+}: {
+  faunaFound: number;
+  faunaTotal: number;
+  floraFound: number;
+  floraTotal: number;
+  blooming: string[];
+  onOpen: (tab?: FieldGuideTab) => void;
+}) {
+  const month = MONTH_ABBR[currentMonth() - 1];
+  const halves: { tab: FieldGuideTab; label: string; found: number; total: number; verb: string; fill: string }[] = [
+    { tab: 'fauna', label: 'Fauna', found: faunaFound, total: faunaTotal, verb: 'spotted', fill: colors.sage },
+    { tab: 'flora', label: 'Flora', found: floraFound, total: floraTotal, verb: 'found', fill: colors.rose },
+  ];
+  return (
+    <TouchableOpacity style={[styles.summaryCard, styles.guideCard]} onPress={() => onOpen()} activeOpacity={0.85}>
+      <View style={styles.guideTop}>
+        <View style={styles.summaryIconBox}>
+          <FieldGuideIcon />
+        </View>
+        <View style={styles.summaryContent}>
+          <Text style={styles.summaryTitle}>Field Guide</Text>
+          <Text style={styles.summarySubtitle}>
+            {faunaFound + floraFound} of {faunaTotal + floraTotal} discovered
+          </Text>
+        </View>
+        <Text style={styles.chevron}>{'›'}</Text>
+      </View>
+      <View style={styles.guideSplit}>
+        {halves.map((h) => (
+          <TouchableOpacity key={h.tab} style={styles.guideHalf} onPress={() => onOpen(h.tab)} activeOpacity={0.8}>
+            <View style={styles.guideHalfLabel}>
+              {h.tab === 'fauna' ? <SmallPawIcon size={11} /> : <FlowerIcon size={11} />}
+              <Text style={styles.guideHalfLabelText}>{h.label}</Text>
+            </View>
+            <Text style={styles.guideHalfCount}>
+              {h.found} <Text style={styles.guideHalfOf}>of {h.total} {h.verb}</Text>
+            </Text>
+            <View style={styles.guideBar}>
+              <View style={[styles.guideBarFill, { width: `${h.total ? (h.found / h.total) * 100 : 0}%`, backgroundColor: h.fill }]} />
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {blooming.length > 0 && (
+        <View style={styles.guideBloom}>
+          <FlowerIcon size={13} />
+          <Text style={styles.guideBloomText} numberOfLines={2}>
+            {blooming.length} blooming in {month}: {blooming.slice(0, 2).join(', ')}
+            {blooming.length > 2 ? ` +${blooming.length - 2}` : ''}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 function BackArrowIcon() {
   return (
     <Svg width={16} height={16} viewBox="0 0 16 16">
@@ -104,7 +170,7 @@ function TreeIcon({ size = 20 }: { size?: number }) {
 
 export default function ParkDetailScreen({ route, navigation }: Props) {
   const { parkId } = route.params;
-  const { parks, trips, trails, animals, toggleFavorite, updateParkStatus, isTrailCompleted, isAnimalSpotted, parkAlerts, alertsSyncedAt, requireAccount } = useApp();
+  const { parks, trips, trails, animals, plants, toggleFavorite, updateParkStatus, isTrailCompleted, isAnimalSpotted, isPlantFound, parkAlerts, alertsSyncedAt, requireAccount } = useApp();
   const insets = useSafeAreaInsets();
   const park = parks.find((p) => p.id === parkId);
   const parkTrips = trips.filter((t) => t.parkId === parkId);
@@ -112,6 +178,9 @@ export default function ParkDetailScreen({ route, navigation }: Props) {
   const parkAnimals = animals.filter((a) => a.parkId === parkId);
   const trailsCompletedCount = parkTrails.filter((t) => isTrailCompleted(t.id)).length;
   const animalsSpottedCount = parkAnimals.filter((a) => isAnimalSpotted(a.id)).length;
+  const parkPlants = plants.filter((p) => p.parkId === parkId);
+  const plantsFoundCount = parkPlants.filter((p) => isPlantFound(p.id)).length;
+  const bloomingNames = parkPlants.filter((p) => isInBloom(p)).map((p) => p.name);
   const guide = getParkGuide(parkId);
   const alerts = alertsForPark(parkAlerts, parkId);
 
@@ -190,7 +259,7 @@ export default function ParkDetailScreen({ route, navigation }: Props) {
             </View>
           </View>
 
-          {/* Trails & Animal Compendium summary cards */}
+          {/* Trails & Field Guide summary cards */}
           {(parkTrails.length > 0 || parkAnimals.length > 0) && (
             <View style={styles.section}>
               {parkTrails.length > 0 && (
@@ -201,14 +270,23 @@ export default function ParkDetailScreen({ route, navigation }: Props) {
                   onPress={() => navigation.navigate('ParkTrails', { parkId: park.id })}
                 />
               )}
-              {parkAnimals.length > 0 && (
+              {parkPlants.length > 0 ? (
+                <FieldGuideCard
+                  faunaFound={animalsSpottedCount}
+                  faunaTotal={parkAnimals.length}
+                  floraFound={plantsFoundCount}
+                  floraTotal={parkPlants.length}
+                  blooming={bloomingNames}
+                  onOpen={(tab) => navigation.navigate('FieldGuide', { parkId: park.id, tab })}
+                />
+              ) : parkAnimals.length > 0 ? (
                 <SummaryCard
                   icon={<PawIcon />}
-                  title="Animal Compendium"
-                  subtitle={`${animalsSpottedCount} of ${parkAnimals.length} spotted`}
-                  onPress={() => navigation.navigate('ParkAnimals', { parkId: park.id })}
+                  title="Field Guide"
+                  subtitle={`${animalsSpottedCount} of ${parkAnimals.length} animals spotted`}
+                  onPress={() => navigation.navigate('FieldGuide', { parkId: park.id })}
                 />
-              )}
+              ) : null}
             </View>
           )}
 
@@ -356,6 +434,18 @@ const styles = StyleSheet.create({
   summaryTitle: { ...typography.labelBold, color: colors.textPrimary },
   summarySubtitle: { ...typography.bodySmall, color: colors.textSecondary },
   chevron: { fontSize: 22, color: colors.textMuted },
+  guideCard: { flexDirection: 'column', alignItems: 'stretch', gap: spacing.sm, borderWidth: 1.5, borderColor: colors.cream },
+  guideTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  guideSplit: { flexDirection: 'row', gap: spacing.sm },
+  guideHalf: { flex: 1, backgroundColor: colors.surfaceWarm, borderRadius: radius.md, padding: spacing.sm, gap: 4 },
+  guideHalfLabel: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  guideHalfLabelText: { ...typography.labelSmall, fontSize: 10, letterSpacing: 0.6, color: colors.textSecondary, textTransform: 'uppercase' },
+  guideHalfCount: { ...typography.h4, fontSize: 18, color: colors.textPrimary },
+  guideHalfOf: { ...typography.caption, color: colors.textMuted },
+  guideBar: { height: 6, borderRadius: radius.full, backgroundColor: colors.divider, overflow: 'hidden' },
+  guideBarFill: { height: '100%', borderRadius: radius.full },
+  guideBloom: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.roseTint, borderRadius: radius.md, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
+  guideBloomText: { ...typography.labelSmall, color: colors.brownDark, flex: 1 },
 
   dayPlanCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, ...shadows.sm },
   dayPlanHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xs },
