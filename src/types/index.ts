@@ -108,6 +108,8 @@ export interface TripDayEntry {
   activities: TripDayActivity[];
   trailsHiked: TripTrailEntry[];
   wildlifeSightings: string[];
+  /** Optional so trips saved before the Field Guide existed still load. */
+  floraSightings?: string[];
   weather?: WeatherType;
 }
 
@@ -126,6 +128,7 @@ export interface Trip {
   weather?: string;
   favoriteTrail?: string;
   wildlifeSightings?: string[];
+  floraSightings?: string[];
   trailsHiked?: TripTrailEntry[];
   rating?: number;
   milesHiked?: number;
@@ -227,6 +230,36 @@ export interface AnimalDetail {
   lastVerified?: string;
 }
 
+export type PlantRarity = AnimalRarity;
+
+export type PlantType = 'Wildflower' | 'Tree' | 'Shrub' | 'Cactus' | 'Succulent' | 'Fern' | 'Grass' | 'Vine';
+
+export interface Plant {
+  id: string;
+  parkId: string;
+  name: string;
+  description: string;
+  rarity: PlantRarity;
+  type: PlantType;
+  /** Months it blooms, 1 = January. Empty for plants grown for leaves or cones rather than flowers. */
+  bloomMonths: number[];
+}
+
+/** Researched enrichment data for a Plant, keyed by Plant.id — same staging pattern as AnimalDetail. */
+export interface PlantDetail {
+  id: string;
+  scientificName: string;
+  whereToLook: string;
+  /** A named nature trail or exhibit where the park features this plant. */
+  natureTrail?: string;
+  tags: string[];
+  idTip: string;
+  didYouKnow: string;
+  /** Spines, toxicity or protected status — shown as a warning on the plant page. */
+  caution?: string;
+  lastVerified?: string;
+}
+
 export type BadgeCategory = 'parks' | 'activity' | 'region' | 'memory' | 'special' | 'distance' | 'secret';
 
 export interface Badge {
@@ -305,7 +338,7 @@ export type ProfileAvatar =
 
 export type Units = 'mi' | 'km';
 
-export type ContentEntryType = 'trail' | 'animal';
+export type ContentEntryType = 'trail' | 'animal' | 'plant';
 
 export type ContentReportReason =
   | 'distance_elevation'
@@ -331,6 +364,14 @@ export interface TrailCompletionRow {
 
 export interface AnimalSightingRow {
   animal_id: string | null;
+  trip_id: string | null;
+  park_id: string;
+  name: string;
+  day_number?: number | null;
+}
+
+export interface PlantSightingRow {
+  plant_id: string | null;
   trip_id: string | null;
   park_id: string;
   name: string;

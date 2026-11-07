@@ -4,14 +4,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
-import { EventNotice, ParkAlert, Park, Trip, TripType, TripTrailEntry, TripDayEntry, WeatherType, Badge, UserStats, UserProfile, ParkStatus, TripActivity, ProfileBackground, ProfileAvatar, Units, Trail, Animal, TrailDetail, AnimalDetail, ContentReportInput, TrailCompletionRow, AnimalSightingRow } from '@/types';
+import { EventNotice, ParkAlert, Park, Trip, TripType, TripTrailEntry, TripDayEntry, WeatherType, Badge, UserStats, UserProfile, ParkStatus, TripActivity, ProfileBackground, ProfileAvatar, Units, Trail, Animal, Plant, TrailDetail, AnimalDetail, PlantDetail, ContentReportInput, TrailCompletionRow, AnimalSightingRow, PlantSightingRow } from '@/types';
 import { ALL_PARKS, UPCOMING_PARKS, visibleParks } from '@/data/parks';
 import { ALL_BADGES } from '@/data/badges';
 import { BADGE_PROGRESS } from '@/data/badgeRules';
 import { ALL_TRAILS } from '@/data/trails';
 import { ALL_ANIMALS } from '@/data/animals';
+import { ALL_PLANTS } from '@/data/plants';
 import { TRAIL_DETAILS } from '@/data/trailDetails';
 import { ANIMAL_DETAILS } from '@/data/animalDetails';
+import { PLANT_DETAILS } from '@/data/plantDetails';
 import { fetchContentBundle } from '@/data/contentService';
 import {
   loadCachedEnabledUpcomingParks,
@@ -34,6 +36,7 @@ import {
   overlayTrips,
   overlayParkStatus,
   overlayTrailCompletions,
+  overlayPlantSightings,
   overlayProfile,
   describeOp,
   DescribeLookup,
@@ -63,6 +66,7 @@ export type GuestAction =
   | { type: 'favorite'; parkId: string }
   | { type: 'status'; parkId: string; status: ParkStatus }
   | { type: 'trail'; trailId: string; parkId: string; name: string }
+  | { type: 'plant'; plantId: string; parkId: string; name: string }
   | { type: 'tripForm'; parkId?: string; tripType: TripType }
   | { type: 'tab'; tab: 'LogTrip' | 'TripsTab' | 'ProfileTab' };
 
@@ -354,6 +358,19 @@ function buildAnimalRows(days: TripDayEntry[], tripId: string, parkId: string, a
   );
 }
 
+function buildPlantRows(days: TripDayEntry[], tripId: string, parkId: string, plants: Plant[]): PlantSightingRow[] {
+  const parkPlants = plants.filter((p) => p.parkId === parkId);
+  return days.flatMap((day) =>
+    (day.floraSightings ?? []).map((name) => ({
+      plant_id: parkPlants.find((p) => p.name.toLowerCase() === name.toLowerCase())?.id ?? null,
+      trip_id: tripId,
+      park_id: parkId,
+      name,
+      day_number: day.dayNumber,
+    }))
+  );
+}
+
 function buildDayActivityRows(days: TripDayEntry[], tripId: string): DayActivityRow[] {
   return days.flatMap((day) =>
     day.activities.map((a) => ({
@@ -382,10 +399,11 @@ function buildDayWeatherRows(days: TripDayEntry[], tripId: string): DayWeatherRo
 function aggregateFromDays(days: TripDayEntry[]) {
   const activities = Array.from(new Set(days.flatMap((d) => d.activities.map((a) => a.activity))));
   const wildlifeSightings = days.flatMap((d) => d.wildlifeSightings);
+  const floraSightings = days.flatMap((d) => d.floraSightings ?? []);
   const trailsHiked = days.flatMap((d) => d.trailsHiked);
   const milesHiked = trailsHiked.reduce((acc, t) => acc + t.miles, 0);
   const elevationGainFt = trailsHiked.reduce((acc, t) => acc + t.elevationGainFt, 0);
-  return { activities, wildlifeSightings, trailsHiked, milesHiked, elevationGainFt };
+  return { activities, wildlifeSightings, floraSightings, trailsHiked, milesHiked, elevationGainFt };
 }
 
 interface AppContextValue {
@@ -409,8 +427,10 @@ interface AppContextValue {
   dataLoading: boolean;
   trails: Trail[];
   animals: Animal[];
+  plants: Plant[];
   trailDetails: Record<string, TrailDetail>;
   animalDetails: Record<string, AnimalDetail>;
+  plantDetails: Record<string, PlantDetail>;
   contentLoaded: boolean;
 
   updateParkStatus: (parkId: string, status: ParkStatus) => void;
@@ -434,6 +454,9 @@ interface AppContextValue {
   deleteAccount: () => Promise<void>;
   isTrailCompleted: (trailId: string) => boolean;
   isAnimalSpotted: (animalId: string) => boolean;
+  isPlantFound: (plantId: string) => boolean;
+  markPlantFound: (plantId: string, parkId: string, name: string) => void;
+  unmarkPlantFound: (plantId: string) => void;
   markTrailCompleted: (trailId: string, parkId: string, name: string) => void;
   unmarkTrailCompleted: (trailId: string) => void;
   isTripPending: (tripId: string) => boolean;
@@ -466,6 +489,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [trailCompletions, setTrailCompletions] = useState<TrailCompletionRow[]>([]);
   const [animalSightings, setAnimalSightings] = useState<AnimalSightingRow[]>([]);
+  const [plantSightings, setPlantSightings] = useState<PlantSightingRow[]>([]);
   // Tracks whether the signed-in user's own parks/profile/badges/trips have
   // finished loading from Supabase, so the UI can hold a spinner instead of
   // briefly showing zeroed-out stats for a returning user with real history.
@@ -640,8 +664,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // once on mount independent of session/auth, unlike the data above.
   const [trails, setTrails] = useState<Trail[]>(ALL_TRAILS);
   const [animals, setAnimals] = useState<Animal[]>(ALL_ANIMALS);
+  const [plants, setPlants] = useState<Plant[]>(ALL_PLANTS);
   const [trailDetails, setTrailDetails] = useState<Record<string, TrailDetail>>(TRAIL_DETAILS);
   const [animalDetails, setAnimalDetails] = useState<Record<string, AnimalDetail>>(ANIMAL_DETAILS);
+  const [plantDetails, setPlantDetails] = useState<Record<string, PlantDetail>>(PLANT_DETAILS);
   const [contentLoaded, setContentLoaded] = useState(false);
   // Tracks whether the last content load fell back to the bundled static
   // data (Supabase unreachable/empty) — a ref, not state, since it only
@@ -655,8 +681,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       usedContentFallbackRef.current = bundle.trails === ALL_TRAILS;
       setTrails(bundle.trails);
       setAnimals(bundle.animals);
+      setPlants(bundle.plants);
       setTrailDetails(bundle.trailDetails);
       setAnimalDetails(bundle.animalDetails);
+      setPlantDetails(bundle.plantDetails);
       setContentLoaded(true);
     });
     return () => {
@@ -724,8 +752,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       usedContentFallbackRef.current = false;
       setTrails(bundle.trails);
       setAnimals(bundle.animals);
+      setPlants(bundle.plants);
       setTrailDetails(bundle.trailDetails);
       setAnimalDetails(bundle.animalDetails);
+      setPlantDetails(bundle.plantDetails);
     });
   }, []);
 
@@ -863,6 +893,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!userId) {
       setTrailCompletions([]);
       setAnimalSightings([]);
+      setPlantSightings([]);
       setTrips([]);
       setPendingTrips([]);
       setTripsLoaded(false);
@@ -877,6 +908,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       supabase
         .from('user_animal_sightings')
         .select('animal_id, trip_id, park_id, name, day_number')
+        .eq('user_id', userId),
+      supabase
+        .from('user_plant_sightings')
+        .select('plant_id, trip_id, park_id, name, day_number')
         .eq('user_id', userId),
       supabase
         .from('trip_day_activities')
@@ -896,15 +931,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .select('trip_id, storage_path, slot, caption')
         .eq('user_id', userId),
       loadPendingTrips(userId),
-    ])).then(async ([trailRes, animalRes, dayActivityRes, dayWeatherRes, tripRes, photoRes, loadedPendingTrips]) => {
+    ])).then(async ([trailRes, animalRes, plantRes, dayActivityRes, dayWeatherRes, tripRes, photoRes, loadedPendingTrips]) => {
       // Offline, or any one of these failing: supabase-js resolves with an
       // error rather than throwing. A half-loaded set would silently drop trips'
       // photos/days and then be cached as if it were complete, so treat it as
       // "couldn't refresh" — keep whatever is on screen (the cached copy, if
       // any) and just make sure the on-device queue is still shown.
-      const refreshFailed = [trailRes, animalRes, dayActivityRes, dayWeatherRes, tripRes, photoRes].some(
-        (res) => res.error
-      );
+      // A database the Field Guide migration hasn't reached yet has no plant
+      // table; that just means no plant discoveries, not a failed refresh.
+      const plantTableMissing = plantRes.error?.code === '42P01' || plantRes.error?.code === 'PGRST205';
+      const refreshFailed =
+        [trailRes, animalRes, dayActivityRes, dayWeatherRes, tripRes, photoRes].some((res) => res.error) ||
+        (!!plantRes.error && !plantTableMissing);
       if (refreshFailed) {
         setPendingTrips(loadedPendingTrips);
         setTrips((prev) => mergePendingTrips(prev, loadedPendingTrips));
@@ -913,11 +951,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       syncedRef.current.trips = 'network';
       const trailRows: TrailCompletionRow[] = trailRes.data ?? [];
       const animalRows: AnimalSightingRow[] = animalRes.data ?? [];
+      const plantRows: PlantSightingRow[] = plantRes.data ?? [];
       const dayActivityRows: DayActivityRow[] = dayActivityRes.data ?? [];
       const dayWeatherRows: DayWeatherRow[] = dayWeatherRes.data ?? [];
       const photoRows = photoRes.data ?? [];
       setTrailCompletions(overlayTrailCompletions(trailRows, outboxRef.current));
       setAnimalSightings(animalRows);
+      setPlantSightings(overlayPlantSightings(plantRows, outboxRef.current));
       const fetchedTripRows = tripRes.data ?? [];
       const fetchedIds = new Set(fetchedTripRows.map((row) => row.id));
       // A pending trip whose id already came back from Supabase synced from
@@ -938,6 +978,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const fetchedTrips: Trip[] = tripRes.data.map((row) => {
           const tripTrailRows = trailRows.filter((t) => t.trip_id === row.id);
           const tripAnimalRows = animalRows.filter((a) => a.trip_id === row.id);
+          const tripPlantRows = plantRows.filter((p) => p.trip_id === row.id);
           const tripDayActivityRows = dayActivityRows.filter((a) => a.trip_id === row.id);
           const tripDayWeatherRows = dayWeatherRows.filter((w) => w.trip_id === row.id);
           // Keep only photos whose link could be produced, so each caption
@@ -953,6 +994,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             new Set([
               ...tripTrailRows.map((t) => t.day_number).filter((n): n is number => n != null),
               ...tripAnimalRows.map((a) => a.day_number).filter((n): n is number => n != null),
+              ...tripPlantRows.map((p) => p.day_number).filter((n): n is number => n != null),
               ...tripDayActivityRows.map((a) => a.day_number),
               ...tripDayWeatherRows.map((w) => w.day_number),
             ])
@@ -973,6 +1015,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 dayNumber,
               })),
             wildlifeSightings: tripAnimalRows.filter((a) => a.day_number === dayNumber).map((a) => a.name),
+            floraSightings: tripPlantRows.filter((p) => p.day_number === dayNumber).map((p) => p.name),
             weather: tripDayWeatherRows.find((w) => w.day_number === dayNumber)?.weather as WeatherType | undefined,
           }));
           return {
@@ -988,6 +1031,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             weather: row.weather ?? undefined,
             favoriteTrail: row.favorite_trail ?? undefined,
             wildlifeSightings: tripAnimalRows.map((a) => a.name),
+            floraSightings: tripPlantRows.map((p) => p.name),
             trailsHiked: tripTrailRows.map((t) => ({
               trailId: t.trail_id ?? undefined,
               name: t.name,
@@ -1056,6 +1100,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         synced.trips = 'cache';
         setTrailCompletions(overlayTrailCompletions(snapshot.trailCompletions ?? [], ops));
         setAnimalSightings(snapshot.animalSightings ?? []);
+        setPlantSightings(overlayPlantSightings(snapshot.plantSightings ?? [], ops));
         setPendingTrips(queued);
         setTrips(mergePendingTrips(overlayTrips(snapshot.trips, ops), queued));
         setTripsLoaded(true);
@@ -1086,11 +1131,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         patch.trips = trips.filter((t) => !pendingIds.has(t.id));
         patch.trailCompletions = trailCompletions;
         patch.animalSightings = animalSightings;
+        patch.plantSightings = plantSightings;
       }
       if (Object.keys(patch).length) saveSnapshot(userId, patch);
     }, 800);
     return () => clearTimeout(timer);
-  }, [userId, userProfile, parkStates, earnedDates, trips, pendingTrips, trailCompletions, animalSightings]);
+  }, [userId, userProfile, parkStates, earnedDates, trips, pendingTrips, trailCompletions, animalSightings, plantSightings]);
 
   const isTrailCompleted = useCallback(
     (trailId: string) => trailCompletions.some((row) => row.trail_id === trailId),
@@ -1100,6 +1146,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const isAnimalSpotted = useCallback(
     (animalId: string) => animalSightings.some((row) => row.animal_id === animalId),
     [animalSightings]
+  );
+
+  const isPlantFound = useCallback(
+    (plantId: string) => plantSightings.some((row) => row.plant_id === plantId),
+    [plantSightings]
   );
 
   const badges: Badge[] = useMemo(() => {
@@ -1168,7 +1219,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     flushInBackground();
   }, [queueOp, flushInBackground, requireAccount]);
 
-  // A user flagging a trail/animal as wrong. It's queued like any other change,
+  // Same as markTrailCompleted: a trip_id-less row, for a plant found
+  // outside a logged trip.
+  const markPlantFound = useCallback((plantId: string, parkId: string, name: string) => {
+    if (!requireAccount({ type: 'plant', plantId, parkId, name })) return;
+    if (plantSightings.some((row) => row.plant_id === plantId)) return;
+    const row: PlantSightingRow = { plant_id: plantId, trip_id: null, park_id: parkId, name };
+    setPlantSightings((prev) => [...prev, row]);
+    queueOp({ type: 'plant.find', row });
+    flushInBackground();
+  }, [plantSightings, queueOp, flushInBackground, requireAccount]);
+
+  // Only clears the manual mark; a find logged on a trip stays.
+  const unmarkPlantFound = useCallback((plantId: string) => {
+    if (!requireAccount()) return;
+    setPlantSightings((prev) => prev.filter((row) => !(row.plant_id === plantId && row.trip_id === null)));
+    queueOp({ type: 'plant.unfind', plantId });
+    flushInBackground();
+  }, [queueOp, flushInBackground, requireAccount]);
+
+  // A user flagging a trail/animal/plant as wrong. It's queued like any other change,
   // so a report made with no signal isn't lost — it goes out on reconnect.
   const submitContentReport = useCallback(
     async (report: ContentReportInput): Promise<boolean> => {
@@ -1274,11 +1344,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await Promise.all([
         supabase.from('user_trail_completions').delete().eq('trip_id', trip.id),
         supabase.from('user_animal_sightings').delete().eq('trip_id', trip.id),
+        supabase.from('user_plant_sightings').delete().eq('trip_id', trip.id),
         supabase.from('trip_day_activities').delete().eq('trip_id', trip.id),
         supabase.from('trip_day_weather').delete().eq('trip_id', trip.id),
       ]);
       const trailRows = buildTrailRows(days, trip.id, trip.parkId);
       const animalRows = buildAnimalRows(days, trip.id, trip.parkId, animals);
+      const plantRows = buildPlantRows(days, trip.id, trip.parkId, plants);
       const activityRows = buildDayActivityRows(days, trip.id);
       const weatherRows = buildDayWeatherRows(days, trip.id);
       if (trailRows.length) {
@@ -1291,6 +1363,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error;
       }
       setAnimalSightings((prev) => [...prev.filter((a) => a.trip_id !== trip.id), ...animalRows]);
+      if (plantRows.length) {
+        const { error } = await supabase.from('user_plant_sightings').insert(plantRows);
+        if (error) throw error;
+      }
+      setPlantSightings((prev) => [...prev.filter((p) => p.trip_id !== trip.id), ...plantRows]);
       if (activityRows.length) {
         const { error } = await supabase.from('trip_day_activities').insert(activityRows);
         if (error) throw error;
@@ -1302,7 +1379,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     return { ...trip, photos, photoCaptions };
-  }, [animals]);
+  }, [animals, plants]);
 
   // Removes a trip server-side, including its photo files (Storage objects
   // don't cascade with the row). Safe to repeat if a previous attempt stopped
@@ -1358,6 +1435,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             .from('user_trail_completions')
             .delete()
             .eq('trail_id', op.trailId)
+            .is('trip_id', null);
+          if (error) throw error;
+          return;
+        }
+        case 'plant.find': {
+          if (!op.row.plant_id) return;
+          const { data, error } = await supabase
+            .from('user_plant_sightings')
+            .select('plant_id')
+            .eq('plant_id', op.row.plant_id)
+            .is('trip_id', null)
+            .limit(1);
+          if (error) throw error;
+          if (data?.length) return; // already recorded — a replay must not duplicate it
+          const { error: insertError } = await supabase.from('user_plant_sightings').insert(op.row);
+          if (insertError) throw insertError;
+          return;
+        }
+        case 'plant.unfind': {
+          const { error } = await supabase
+            .from('user_plant_sightings')
+            .delete()
+            .eq('plant_id', op.plantId)
             .is('trip_id', null);
           if (error) throw error;
           return;
@@ -1546,6 +1646,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const lookup: DescribeLookup = {
       parkName: (id) => parks.find((p) => p.id === id)?.name ?? id,
       trailName: (id) => trails.find((t) => t.id === id)?.name ?? id,
+      plantName: (id) => plants.find((p) => p.id === id)?.name ?? id,
       badgeName: (id) => ALL_BADGES.find((b) => b.id === id)?.name ?? id,
     };
     const newTrips = pendingTrips.map((t) => ({
@@ -1556,18 +1657,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
     const ops = outboxOps.map((op) => ({ id: op.id, ...describeOp(op, lookup), error: op.lastError }));
     return [...newTrips, ...ops];
-  }, [pendingTrips, outboxOps, syncIssues, parks, trails]);
+  }, [pendingTrips, outboxOps, syncIssues, parks, trails, plants]);
 
   const logTrip = useCallback(async (trip: Omit<Trip, 'id'>) => {
     const aggregate = trip.days?.length ? aggregateFromDays(trip.days) : null;
     const activities = aggregate?.activities ?? trip.activities;
     const wildlifeSightings = aggregate?.wildlifeSightings ?? trip.wildlifeSightings;
+    const floraSightings = aggregate?.floraSightings ?? trip.floraSightings;
     const trailsHiked = aggregate?.trailsHiked ?? trip.trailsHiked;
     const milesHiked = aggregate?.milesHiked ?? trip.trailsHiked?.reduce((acc, t) => acc + t.miles, 0) ?? trip.milesHiked;
     const elevationGainFt = aggregate?.elevationGainFt ?? trip.trailsHiked?.reduce((acc, t) => acc + t.elevationGainFt, 0) ?? trip.elevationGainFt;
 
     const tripId = Crypto.randomUUID();
-    const newTrip: Trip = { ...trip, activities, wildlifeSightings, trailsHiked, milesHiked, elevationGainFt, id: tripId };
+    const newTrip: Trip = { ...trip, activities, wildlifeSightings, floraSightings, trailsHiked, milesHiked, elevationGainFt, id: tripId };
 
     // Show it right away, before any network attempt — the point of this
     // queue is that "did this save" shouldn't wait on connectivity.
@@ -1662,13 +1764,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const days = updatedTrip.days;
         const trailRows = buildTrailRows(days, updatedTrip.id, updatedTrip.parkId);
         const animalRows = buildAnimalRows(days, updatedTrip.id, updatedTrip.parkId, animals);
+        const plantRows = buildPlantRows(days, updatedTrip.id, updatedTrip.parkId, plants);
         setTrailCompletions((prev) => [...prev.filter((t) => t.trip_id !== updatedTrip.id), ...trailRows]);
         setAnimalSightings((prev) => [...prev.filter((a) => a.trip_id !== updatedTrip.id), ...animalRows]);
+        setPlantSightings((prev) => [...prev.filter((p) => p.trip_id !== updatedTrip.id), ...plantRows]);
       }
       queueOp({ type: 'trip.edit', trip: updatedTrip });
       await Promise.race([flushOutboxRef.current(), sleep(FLUSH_WAIT_MS)]);
     },
-    [commitPendingTrips, syncPendingTrips, queueOp, animals]
+    [commitPendingTrips, syncPendingTrips, queueOp, animals, plants]
   );
 
   const updateTrip = useCallback(async (trip: Trip) => {
@@ -1676,10 +1780,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const aggregate = trip.days?.length ? aggregateFromDays(trip.days) : null;
     const activities = aggregate?.activities ?? trip.activities;
     const wildlifeSightings = aggregate?.wildlifeSightings ?? trip.wildlifeSightings;
+    const floraSightings = aggregate?.floraSightings ?? trip.floraSightings;
     const trailsHiked = aggregate?.trailsHiked ?? trip.trailsHiked;
     const milesHiked = aggregate?.milesHiked ?? trip.milesHiked;
     const elevationGainFt = aggregate?.elevationGainFt ?? trip.elevationGainFt;
-    const updatedTrip: Trip = { ...trip, activities, wildlifeSightings, trailsHiked, milesHiked, elevationGainFt };
+    const updatedTrip: Trip = { ...trip, activities, wildlifeSightings, floraSightings, trailsHiked, milesHiked, elevationGainFt };
     await saveTripChanges(updatedTrip);
 
     // Editing a still-planned trip onto a different park moves the
@@ -1711,10 +1816,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const aggregate = trip.days?.length ? aggregateFromDays(trip.days) : null;
     const activities = aggregate?.activities ?? trip.activities;
     const wildlifeSightings = aggregate?.wildlifeSightings ?? trip.wildlifeSightings;
+    const floraSightings = aggregate?.floraSightings ?? trip.floraSightings;
     const trailsHiked = aggregate?.trailsHiked ?? trip.trailsHiked;
     const milesHiked = aggregate?.milesHiked ?? trip.trailsHiked?.reduce((acc, t) => acc + t.miles, 0) ?? trip.milesHiked;
     const elevationGainFt = aggregate?.elevationGainFt ?? trip.trailsHiked?.reduce((acc, t) => acc + t.elevationGainFt, 0) ?? trip.elevationGainFt;
-    const completedTrip: Trip = { ...trip, tripType: 'logged', activities, wildlifeSightings, trailsHiked, milesHiked, elevationGainFt };
+    const completedTrip: Trip = { ...trip, tripType: 'logged', activities, wildlifeSightings, floraSightings, trailsHiked, milesHiked, elevationGainFt };
 
     setParks((prev) => prev.map((p) => (p.id === trip.parkId ? { ...p, status: 'visited' } : p)));
     const isFavorite = parks.find((p) => p.id === trip.parkId)?.isFavorite ?? false;
@@ -1746,6 +1852,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Cascades server-side too; mirror locally so counts/checkmarks update immediately.
       setTrailCompletions((prev) => prev.filter((r) => r.trip_id !== tripId));
       setAnimalSightings((prev) => prev.filter((r) => r.trip_id !== tripId));
+      setPlantSightings((prev) => prev.filter((r) => r.trip_id !== tripId));
     }
 
     // A park's 'planned' status exists only because a planned trip put it
@@ -1847,6 +1954,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       case 'trail':
         markTrailCompleted(action.trailId, action.parkId, action.name);
         return;
+      case 'plant':
+        markPlantFound(action.plantId, action.parkId, action.name);
+        return;
       case 'tripForm':
         if (navigationRef.isReady()) {
           navigationRef.navigate('Main', {
@@ -1864,7 +1974,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
         return;
     }
-  }, [session, dataLoading, parks, toggleFavorite, updateParkStatus, markTrailCompleted]);
+  }, [session, dataLoading, parks, toggleFavorite, updateParkStatus, markTrailCompleted, markPlantFound]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -1925,8 +2035,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dataLoading,
         trails,
         animals,
+        plants,
         trailDetails,
         animalDetails,
+        plantDetails,
         contentLoaded,
         updateParkStatus,
         toggleFavorite,
@@ -1945,6 +2057,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteAccount,
         isTrailCompleted,
         isAnimalSpotted,
+        isPlantFound,
+        markPlantFound,
+        unmarkPlantFound,
         markTrailCompleted,
         unmarkTrailCompleted,
         isTripPending,

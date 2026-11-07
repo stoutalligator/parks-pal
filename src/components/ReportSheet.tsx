@@ -37,6 +37,12 @@ const REASONS: Record<ContentEntryType, { value: ContentReportReason; label: str
     { value: 'tip_wrong', label: 'Tip is unsafe or wrong' },
     { value: 'other', label: 'Something else' },
   ],
+  plant: [
+    { value: 'not_found_here', label: 'Not found here' },
+    { value: 'rarity', label: 'Rarity or bloom season feels off' },
+    { value: 'tip_wrong', label: 'Tip is unsafe or wrong' },
+    { value: 'other', label: 'Something else' },
+  ],
 };
 
 export function ReportFlagButton({ onPress }: { onPress: () => void }) {

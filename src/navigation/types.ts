@@ -1,6 +1,8 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { TripType } from '@/types';
 
+export type FieldGuideTab = 'fauna' | 'flora';
+
 export type RootStackParamList = {
   Welcome: undefined;
   Auth: { mode?: 'Log In' | 'Sign Up' } | undefined;
@@ -37,9 +39,10 @@ export type HomeStackParamList = {
   Home: undefined;
   ParkDetail: { parkId: string };
   ParkTrails: { parkId: string };
-  ParkAnimals: { parkId: string };
+  FieldGuide: { parkId: string; tab?: FieldGuideTab };
   TrailDetail: { trailId: string };
   AnimalDetail: { animalId: string };
+  PlantDetail: { plantId: string };
   TripDetail: { tripId: string };
   LogTripForm: LogTripFormParams;
 };
@@ -48,9 +51,10 @@ export type ParksStackParamList = {
   Explore: undefined;
   ParkDetail: { parkId: string };
   ParkTrails: { parkId: string };
-  ParkAnimals: { parkId: string };
+  FieldGuide: { parkId: string; tab?: FieldGuideTab };
   TrailDetail: { trailId: string };
   AnimalDetail: { animalId: string };
+  PlantDetail: { plantId: string };
   TripDetail: { tripId: string };
   LogTripForm: LogTripFormParams;
 };
@@ -73,9 +77,10 @@ export type ProfileStackParamList = {
   TripDetail: { tripId: string };
   ParkDetail: { parkId: string };
   ParkTrails: { parkId: string };
-  ParkAnimals: { parkId: string };
+  FieldGuide: { parkId: string; tab?: FieldGuideTab };
   TrailDetail: { trailId: string };
   AnimalDetail: { animalId: string };
+  PlantDetail: { plantId: string };
   Settings: undefined;
   EditProfile: undefined;
   EditGoal: undefined;

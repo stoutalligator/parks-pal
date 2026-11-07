@@ -1,15 +1,19 @@
 import { supabase } from '@/lib/supabase';
-import { Trail, Animal, TrailDetail, AnimalDetail, ElevationPoint } from '@/types';
+import { Trail, Animal, Plant, TrailDetail, AnimalDetail, PlantDetail, ElevationPoint } from '@/types';
 import { ALL_TRAILS } from '@/data/trails';
 import { ALL_ANIMALS } from '@/data/animals';
+import { ALL_PLANTS } from '@/data/plants';
 import { TRAIL_DETAILS } from '@/data/trailDetails';
 import { ANIMAL_DETAILS } from '@/data/animalDetails';
+import { PLANT_DETAILS } from '@/data/plantDetails';
 
 export interface ContentBundle {
   trails: Trail[];
   animals: Animal[];
+  plants: Plant[];
   trailDetails: Record<string, TrailDetail>;
   animalDetails: Record<string, AnimalDetail>;
+  plantDetails: Record<string, PlantDetail>;
 }
 
 interface TrailRow {
@@ -28,6 +32,16 @@ interface AnimalRow {
   name: string;
   description: string;
   rarity: string;
+}
+
+interface PlantRow {
+  id: string;
+  park_id: string;
+  name: string;
+  description: string;
+  rarity: string;
+  type: string;
+  bloom_months: number[];
 }
 
 interface TrailDetailRow {
@@ -54,6 +68,18 @@ interface AnimalDetailRow {
   last_verified: string | null;
 }
 
+interface PlantDetailRow {
+  id: string;
+  scientific_name: string;
+  where_to_look: string;
+  nature_trail: string | null;
+  tags: string[];
+  id_tip: string;
+  did_you_know: string;
+  caution: string | null;
+  last_verified: string | null;
+}
+
 function mapTrailRow(row: TrailRow): Trail {
   return {
     id: row.id,
@@ -73,6 +99,32 @@ function mapAnimalRow(row: AnimalRow): Animal {
     name: row.name,
     description: row.description,
     rarity: row.rarity as Animal['rarity'],
+  };
+}
+
+function mapPlantRow(row: PlantRow): Plant {
+  return {
+    id: row.id,
+    parkId: row.park_id,
+    name: row.name,
+    description: row.description,
+    rarity: row.rarity as Plant['rarity'],
+    type: row.type as Plant['type'],
+    bloomMonths: row.bloom_months ?? [],
+  };
+}
+
+function mapPlantDetailRow(row: PlantDetailRow): PlantDetail {
+  return {
+    id: row.id,
+    scientificName: row.scientific_name,
+    whereToLook: row.where_to_look,
+    natureTrail: row.nature_trail ?? undefined,
+    tags: row.tags,
+    idTip: row.id_tip,
+    didYouKnow: row.did_you_know,
+    caution: row.caution ?? undefined,
+    lastVerified: row.last_verified ?? undefined,
   };
 }
 
@@ -104,16 +156,19 @@ function mapAnimalDetailRow(row: AnimalDetailRow): AnimalDetail {
   };
 }
 
-// Fetches trail/animal content (and its research enrichment) from Supabase,
-// falling back to the bundled static data on any error or empty result —
-// covers an unseeded table, a Supabase outage, or offline use, so the app
-// never ends up with zero cards.
+// Fetches trail/animal/plant content (and its research enrichment) from
+// Supabase, falling back to the bundled static data on any error or empty
+// result — covers an unseeded table (or, for plants, a database the Field
+// Guide migration hasn't reached yet), a Supabase outage, or offline use, so
+// the app never ends up with zero cards.
 export async function fetchContentBundle(): Promise<ContentBundle> {
-  const [trailsRes, animalsRes, trailDetailsRes, animalDetailsRes] = await Promise.all([
+  const [trailsRes, animalsRes, plantsRes, trailDetailsRes, animalDetailsRes, plantDetailsRes] = await Promise.all([
     supabase.from('trails').select('id, park_id, name, description, miles, elevation_gain_ft, difficulty'),
     supabase.from('animals').select('id, park_id, name, description, rarity'),
+    supabase.from('plants').select('id, park_id, name, description, rarity, type, bloom_months'),
     supabase.from('trail_details').select('*'),
     supabase.from('animal_details').select('*'),
+    supabase.from('plant_details').select('*'),
   ]);
 
   const trails =
@@ -136,5 +191,15 @@ export async function fetchContentBundle(): Promise<ContentBundle> {
       ? Object.fromEntries((animalDetailsRes.data as AnimalDetailRow[]).map(mapAnimalDetailRow).map((d) => [d.id, d]))
       : ANIMAL_DETAILS;
 
-  return { trails, animals, trailDetails, animalDetails };
+  const plants =
+    !plantsRes.error && plantsRes.data && plantsRes.data.length > 0
+      ? (plantsRes.data as PlantRow[]).map(mapPlantRow)
+      : ALL_PLANTS;
+
+  const plantDetails =
+    !plantDetailsRes.error && plantDetailsRes.data && plantDetailsRes.data.length > 0
+      ? Object.fromEntries((plantDetailsRes.data as PlantDetailRow[]).map(mapPlantDetailRow).map((d) => [d.id, d]))
+      : PLANT_DETAILS;
+
+  return { trails, animals, plants, trailDetails, animalDetails, plantDetails };
 }

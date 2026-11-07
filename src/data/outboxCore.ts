@@ -1,4 +1,4 @@
-import type { Trip, ParkStatus, UserProfile, TrailCompletionRow, ContentReportInput } from '@/types';
+import type { Trip, ParkStatus, UserProfile, TrailCompletionRow, PlantSightingRow, ContentReportInput } from '@/types';
 import type { ParkStatusSnapshot } from '@/data/localCache';
 
 // Pure logic for the offline outbox — no React Native or Supabase imports, so
@@ -22,6 +22,8 @@ export type OutboxOp = OpMeta &
     | { type: 'trip.delete'; tripId: string; label?: string }
     | { type: 'trail.complete'; row: TrailCompletionRow }
     | { type: 'trail.uncomplete'; trailId: string }
+    | { type: 'plant.find'; row: PlantSightingRow }
+    | { type: 'plant.unfind'; plantId: string }
     | { type: 'park.status'; parkId: string; status: ParkStatus; isFavorite: boolean }
     | { type: 'profile.patch'; patch: Partial<UserProfile> }
     | { type: 'badge.earn'; badges: { badgeId: string; earnedAt: string; progress: number }[] }
@@ -71,6 +73,14 @@ export function enqueueOp(ops: OutboxOp[], op: NewOutboxOp, meta: { id: string; 
         .find((o) => (o.type === 'trail.complete' && o.row.trail_id === trailId) || (o.type === 'trail.uncomplete' && o.trailId === trailId));
       return lastForTrail && lastForTrail.type === next.type ? ops : [...ops, next];
     }
+    case 'plant.find':
+    case 'plant.unfind': {
+      const plantId = next.type === 'plant.find' ? next.row.plant_id : next.plantId;
+      const lastForPlant = [...ops]
+        .reverse()
+        .find((o) => (o.type === 'plant.find' && o.row.plant_id === plantId) || (o.type === 'plant.unfind' && o.plantId === plantId));
+      return lastForPlant && lastForPlant.type === next.type ? ops : [...ops, next];
+    }
     case 'report.submit': {
       const r = next.report;
       const duplicate = ops.some(
@@ -104,6 +114,7 @@ export function isNetworkError(error: unknown): boolean {
 export interface DescribeLookup {
   parkName: (parkId: string) => string;
   trailName: (trailId: string) => string;
+  plantName: (plantId: string) => string;
   badgeName: (badgeId: string) => string;
 }
 
@@ -130,6 +141,10 @@ export function describeOp(op: OutboxOp, lookup: DescribeLookup): ChangeDescript
       return { title: 'Mark trail done', detail: op.row.name };
     case 'trail.uncomplete':
       return { title: 'Unmark trail', detail: lookup.trailName(op.trailId) };
+    case 'plant.find':
+      return { title: 'Mark plant found', detail: op.row.name };
+    case 'plant.unfind':
+      return { title: 'Unmark plant', detail: lookup.plantName(op.plantId) };
     case 'park.status':
       return {
         title: 'Park update',
@@ -177,6 +192,20 @@ export function overlayTrailCompletions(rows: TrailCompletionRow[], ops: OutboxO
     }
     if (op.type === 'trail.uncomplete') {
       result = result.filter((r) => !(r.trail_id === op.trailId && r.trip_id === null));
+    }
+  }
+  return result;
+}
+
+export function overlayPlantSightings(rows: PlantSightingRow[], ops: OutboxOp[]): PlantSightingRow[] {
+  let result = rows;
+  for (const op of ops) {
+    if (op.type === 'plant.find') {
+      const exists = result.some((r) => r.plant_id === op.row.plant_id && r.trip_id === null);
+      if (!exists) result = [...result, op.row];
+    }
+    if (op.type === 'plant.unfind') {
+      result = result.filter((r) => !(r.plant_id === op.plantId && r.trip_id === null));
     }
   }
   return result;

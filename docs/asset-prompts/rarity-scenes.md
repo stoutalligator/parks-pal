@@ -2,7 +2,7 @@
 
 Part of the planned Animal Compendium detail-page upgrade (currently just a concept — nothing in the app references these files yet). Instead of a bespoke illustration per animal (516 entries, not realistic to hand-draw individually), each animal detail page's hero banner falls back to one of **3 shared scene images**, chosen by the animal's existing `rarity` field (`Common` | `Uncommon` | `Rare` — see `AnimalRarity` in `src/types/index.ts`). The scene should telegraph "how special this sighting is" through mood/lighting rather than depicting any specific species, since one image has to sit behind dozens of different animals.
 
-These reuse the same rarity accent colors already live in the app's UI (`RARITY_COLOR` in `ParkAnimalsScreen.tsx`): sage for Common, orange for Uncommon, rose for Rare.
+These reuse the same rarity accent colors already live in the app's UI (`RARITY_COLOR` in `FieldGuideScreen.tsx`): sage for Common, orange for Uncommon, rose for Rare.
 
 **Spec:** 1024x480px (wide banner, ~2.13:1), **opaque background** (this is a full-bleed banner behind a name/stat overlay, not a floating character — no transparency needed). No animal, no character, no text — just an illustrated landscape/atmosphere scene.
 

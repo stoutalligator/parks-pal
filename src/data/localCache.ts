@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Trip, UserProfile, ParkStatus, TrailCompletionRow, AnimalSightingRow } from '@/types';
+import type { Trip, UserProfile, ParkStatus, TrailCompletionRow, AnimalSightingRow, PlantSightingRow } from '@/types';
 
 // A last-known copy of the signed-in user's data, so the app can open with
 // no connection and show real content instead of an empty profile. It's a
@@ -27,6 +27,7 @@ export interface UserSnapshot {
   trips?: Trip[];
   trailCompletions?: TrailCompletionRow[];
   animalSightings?: AnimalSightingRow[];
+  plantSightings?: PlantSightingRow[];
 }
 
 export type SnapshotPatch = Partial<Omit<UserSnapshot, 'version'>>;
