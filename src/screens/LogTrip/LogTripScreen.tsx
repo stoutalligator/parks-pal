@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, TextInput,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Path, Polygon, Circle, Line, Polyline } from 'react-native-svg';
-import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute, StackActions } from '@react-navigation/native';
 import { useApp } from '@/context/AppContext';
 import { colors, spacing, radius, shadows, typography } from '@/theme';
 import {
@@ -27,7 +27,7 @@ import PhotoCaptionSheet from '@/components/PhotoCaptionSheet';
 import DateRangePicker from '@/components/DateRangePicker';
 import { showToast } from '@/components/Toast';
 import { convertMiles, convertFeet, toMiles, toFeet, distanceLabel, elevationLabel } from '@/utils/units';
-import { formatDateRange, addDays, dayCountBetween, parseLocalDate } from '@/utils/dates';
+import { formatDateRange, addDays, dayCountBetween, parseLocalDate, todayDateString } from '@/utils/dates';
 import { successHaptic } from '@/utils/haptics';
 import { MONTH_ABBR, isInBloom } from '@/utils/bloom';
 import { FieldGuideIcon, FlowerIcon } from '@/components/FieldGuideIcons';
@@ -1209,7 +1209,7 @@ export default function LogTripScreen() {
       ? (editingTrip.tripType === 'planned' ? 'plan' : 'log')
       : (route.params?.initialTripType === 'planned' ? 'plan' : 'log');
   const [heroImage, setHeroImage] = useState<number>(randomHeroImage);
-  const [selectedParkId, setSelectedParkId] = useState<string>(editingTrip?.parkId ?? route.params?.parkId ?? 'yellowstone');
+  const [selectedParkId, setSelectedParkId] = useState<string>(editingTrip?.parkId ?? completingTrip?.parkId ?? route.params?.parkId ?? '');
   const [startDate, setStartDate] = useState(editingTrip?.startDate ?? '');
   const [endDate, setEndDate] = useState(editingTrip?.endDate ?? '');
   const [notes, setNotes] = useState(editingTrip?.notes ?? '');
@@ -1231,10 +1231,15 @@ export default function LogTripScreen() {
   const [dayEntries, setDayEntries] = useState<Record<number, DayFormState>>(() =>
     buildDayEntriesMap(editingTrip ?? completingTrip)
   );
-  // Park and dates start open since they're required first; everything else
-  // stays tucked away until tapped, so the form doesn't read as one long list.
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ park: true, when: true });
+  // Only the first required section that's still empty starts open (park,
+  // then dates); filled ones stay collapsed to their summary line.
+  const initialSections = (parkId: string, start: string): Record<string, boolean> =>
+    !parkId ? { park: true } : !start ? { when: true } : {};
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
+    initialSections(selectedParkId, (editingTrip ?? completingTrip)?.startDate ?? '')
+  );
   const toggleSection = (key: string) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  const today = todayDateString();
 
   useFocusEffect(
     useCallback(() => {
@@ -1252,7 +1257,7 @@ export default function LogTripScreen() {
   const editingTripId: string | undefined = route.params?.tripId;
   const completeTripId: string | undefined = route.params?.completeTripId;
   const requestedParkId: string | undefined = route.params?.parkId;
-  useEffect(() => {
+  const resetForm = () => {
     const trip = editingTripId
       ? trips.find((t) => t.id === editingTripId)
       : completeTripId
@@ -1267,7 +1272,7 @@ export default function LogTripScreen() {
       setPhotoCaptions(trip.photoCaptions ?? []);
       setRating(trip.rating ?? 0);
     } else {
-      setSelectedParkId(requestedParkId ?? 'yellowstone');
+      setSelectedParkId(requestedParkId ?? '');
       setStartDate('');
       setEndDate('');
       setNotes('');
@@ -1275,11 +1280,22 @@ export default function LogTripScreen() {
       setPhotoCaptions([]);
       setRating(0);
     }
+    setExpanded(initialSections(trip?.parkId ?? requestedParkId ?? '', trip?.startDate ?? ''));
+    setShowParkPicker(false);
     setDayEntries(buildDayEntriesMap(trip));
     setStep('details');
     setPageIndex(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingTripId, completeTripId, requestedParkId]);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(resetForm, [editingTripId, completeTripId, requestedParkId]);
+
+  // Take the finished form off its stack so returning to that tab doesn't
+  // show it again, still filled in and one tap from saving a duplicate. A
+  // form that's the root of its stack can't be popped, so it's cleared too.
+  const leaveForm = () => {
+    resetForm();
+    if (navigation.getState().index > 0) navigation.dispatch(StackActions.pop());
+  };
 
   const selectedPark = parks.find((p) => p.id === selectedParkId);
   const sortedParks = [...parks].sort((a, b) => a.name.localeCompare(b.name));
@@ -1397,7 +1413,7 @@ export default function LogTripScreen() {
         if (!saved) return;
         successHaptic();
         showToast('Trip completed! A new postcard was added to your collection.', 'success');
-        (navigation as any).navigate('TripsTab', { screen: 'Trips' });
+        leaveForm();
         return;
       }
 
@@ -1422,7 +1438,7 @@ export default function LogTripScreen() {
         if (!saved) return;
         successHaptic();
         showToast('Trip updated! Your changes have been saved.', 'success');
-        (navigation as any).navigate('TripsTab', { screen: 'Trips' });
+        leaveForm();
         return;
       }
 
@@ -1448,6 +1464,7 @@ export default function LogTripScreen() {
       // the trip landed.
       successHaptic();
       showToast(mode === 'plan' ? 'Trip planned! We’ll be ready when you are.' : 'Adventure saved! A new postcard was added to your collection.', 'success');
+      leaveForm();
       (navigation as any).navigate('TripsTab', { screen: 'Trips' });
     } finally {
       setSaving(false);
@@ -1468,7 +1485,7 @@ export default function LogTripScreen() {
         <Text style={styles.screenTitle}>
           {mode === 'complete' ? 'Mark as Completed' : editingTrip ? 'Edit Trip' : mode === 'plan' ? 'Plan a Trip' : 'Log a Trip'}
         </Text>
-        <View style={styles.backBtn} />
+        <View style={styles.headerSpacer} />
       </View>
 
       {step === 'details' ? (
@@ -1500,6 +1517,7 @@ export default function LogTripScreen() {
                         setSelectedParkId(p.id);
                         setShowParkPicker(false);
                         setDayEntries({});
+                        setExpanded((prev) => ({ ...prev, park: false, when: prev.when || !startDate }));
                       }}
                     >
                       <Text style={[styles.dropdownText, selectedParkId === p.id && styles.dropdownTextActive]}>{p.name}</Text>
@@ -1520,9 +1538,12 @@ export default function LogTripScreen() {
             <DateRangePicker
               startDate={startDate}
               endDate={endDate}
+              minDate={mode === 'plan' ? today : undefined}
+              maxDate={mode === 'plan' ? undefined : today}
               onChange={(s, e) => {
                 setStartDate(s);
                 setEndDate(e);
+                if (e) setExpanded((prev) => ({ ...prev, when: false }));
               }}
             />
           </Accordion>
@@ -1684,6 +1705,7 @@ const styles = StyleSheet.create({
 
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingTop: spacing['2xl'] },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.sm },
+  headerSpacer: { width: 36, height: 36 },
   screenTitle: { ...typography.h3, color: colors.textPrimary },
 
   heroArea: { height: 190, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
