@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Dimensions, Platform, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Path, Polygon, Circle, Line, Polyline } from 'react-native-svg';
@@ -583,10 +583,10 @@ function emptyDay(): DayFormState {
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PAGE_WIDTH = SCREEN_WIDTH - spacing.xl * 2;
+const DAY_TAB_WIDTH = 64;
+const MAX_NOTES_LENGTH = 1000;
 
 interface DayPageProps {
-  dayNumber: number;
-  dateLabel: string;
   mode: FormMode;
   units: Units;
   parkTrails: Trail[];
@@ -761,7 +761,7 @@ function DiscoveryPanel({
 // form used to show once for the whole trip (activity chips + viewpoint,
 // trail picker with custom-add, wildlife picker with custom-add, weather),
 // just scoped to a single day's DayFormState instead of the whole trip.
-function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, parkPlants, month, parkActivities, value, onChange, width }: DayPageProps) {
+function DayPage({ mode, units, parkTrails, parkAnimals, parkPlants, month, parkActivities, value, onChange, width }: DayPageProps) {
   const [openSection, setOpenSection] = useState<DaySectionKey | null>(null);
   const [addingTrail, setAddingTrail] = useState(false);
   const [customTrailName, setCustomTrailName] = useState('');
@@ -920,8 +920,6 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
         onScroll={(e) => { pageScrollY.current = e.nativeEvent.contentOffset.y; }}
         scrollEventThrottle={16}
       >
-        <Text style={styles.dayPageTitle}>Day {dayNumber} · {dateLabel}</Text>
-
         <Text style={styles.sublabel}>{mode === 'plan' ? 'What are you hoping to do?' : 'What did you do?'}</Text>
         <View style={styles.activityGrid}>
           {ACTIVITIES.map(({ label, render }) => {
@@ -935,7 +933,7 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
                 activeOpacity={0.8}
               >
                 {render(iconColor)}
-                <Text style={[styles.activityLabel, active && styles.activityLabelActive]}>{label}</Text>
+                <Text style={[styles.activityLabel, active && styles.activityLabelActive]} numberOfLines={1} adjustsFontSizeToFit>{label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -956,7 +954,7 @@ function DayPage({ dayNumber, dateLabel, mode, units, parkTrails, parkAnimals, p
                     activeOpacity={0.8}
                   >
                     {PARK_ACTIVITY_ICONS[label](iconColor)}
-                    <Text style={[styles.activityLabel, active && styles.activityLabelActive]}>{label}</Text>
+                    <Text style={[styles.activityLabel, active && styles.activityLabelActive]} numberOfLines={2}>{label}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -1228,6 +1226,8 @@ export default function LogTripScreen() {
   const [step, setStep] = useState<'details' | 'days'>('details');
   const [pageIndex, setPageIndex] = useState(0);
   const dayScrollRef = useRef<ScrollView>(null);
+  const dayTabsRef = useRef<ScrollView>(null);
+  const [parkQuery, setParkQuery] = useState('');
   const [dayEntries, setDayEntries] = useState<Record<number, DayFormState>>(() =>
     buildDayEntriesMap(editingTrip ?? completingTrip)
   );
@@ -1292,13 +1292,64 @@ export default function LogTripScreen() {
   // Take the finished form off its stack so returning to that tab doesn't
   // show it again, still filled in and one tap from saving a duplicate. A
   // form that's the root of its stack can't be popped, so it's cleared too.
+  const allowLeave = useRef(false);
   const leaveForm = () => {
     resetForm();
-    if (navigation.getState().index > 0) navigation.dispatch(StackActions.pop());
+    if (navigation.getState().index > 0) {
+      allowLeave.current = true;
+      navigation.dispatch(StackActions.pop());
+    }
   };
+
+  const baselineTrip = editingTripId
+    ? trips.find((t) => t.id === editingTripId)
+    : completeTripId
+      ? trips.find((t) => t.id === completeTripId)
+      : undefined;
+  const isDirty =
+    selectedParkId !== (baselineTrip?.parkId ?? requestedParkId ?? '') ||
+    startDate !== (baselineTrip?.startDate ?? '') ||
+    endDate !== (baselineTrip?.endDate ?? '') ||
+    notes !== (baselineTrip?.notes ?? '') ||
+    rating !== (baselineTrip?.rating ?? 0) ||
+    photos.join('|') !== (baselineTrip?.photos ?? []).join('|') ||
+    photoCaptions.join('|') !== (baselineTrip?.photoCaptions ?? []).join('|') ||
+    JSON.stringify(dayEntries) !== JSON.stringify(buildDayEntriesMap(baselineTrip));
+
+  // Backing out of a half-filled form (header back, Android back, or the +
+  // button jumping to the chooser) asks first instead of silently dropping it.
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !isDirty });
+    return navigation.addListener('beforeRemove', (e: { preventDefault: () => void; data: { action: Readonly<{ type: string }> } }) => {
+      if (allowLeave.current || !isDirty) {
+        allowLeave.current = false;
+        return;
+      }
+      e.preventDefault();
+      const discard = () => {
+        allowLeave.current = true;
+        resetForm();
+        navigation.dispatch(e.data.action);
+      };
+      const message = 'You have unsaved changes. Leave and discard them?';
+      if (Platform.OS === 'web') {
+        if (window.confirm(message)) discard();
+        return;
+      }
+      Alert.alert('Discard changes?', message, [
+        { text: 'Keep editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: discard },
+      ]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, isDirty]);
 
   const selectedPark = parks.find((p) => p.id === selectedParkId);
   const sortedParks = [...parks].sort((a, b) => a.name.localeCompare(b.name));
+  const parkQueryLower = parkQuery.trim().toLowerCase();
+  const filteredParks = parkQueryLower
+    ? sortedParks.filter((p) => p.name.toLowerCase().includes(parkQueryLower) || p.state.toLowerCase().includes(parkQueryLower))
+    : sortedParks;
   const parkTrails = trails.filter((t) => t.parkId === selectedParkId).sort(
     (a, b) => DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficulty]
   );
@@ -1366,6 +1417,18 @@ export default function LogTripScreen() {
     const index = Math.round(e.nativeEvent.contentOffset.x / PAGE_WIDTH);
     setPageIndex(index);
   };
+
+  const goToDay = (index: number) => {
+    setPageIndex(index);
+    dayScrollRef.current?.scrollTo({ x: index * PAGE_WIDTH, animated: true });
+  };
+
+  // Keep the active day's tab in view on long trips, whether it was tapped
+  // or reached by swiping the pager.
+  useEffect(() => {
+    const tabStride = DAY_TAB_WIDTH + spacing.sm;
+    dayTabsRef.current?.scrollTo({ x: Math.max(0, pageIndex * tabStride - PAGE_WIDTH / 2 + tabStride / 2), animated: true });
+  }, [pageIndex]);
 
   const buildDays = (): TripDayEntry[] =>
     dayNumbers.map((dayNumber) => {
@@ -1502,20 +1565,38 @@ export default function LogTripScreen() {
             expanded={!!expanded.park}
             onToggle={() => toggleSection('park')}
           >
-            <TouchableOpacity style={styles.selector} onPress={() => setShowParkPicker(!showParkPicker)}>
+            <TouchableOpacity
+              style={styles.selector}
+              onPress={() => {
+                setShowParkPicker(!showParkPicker);
+                setParkQuery('');
+              }}
+            >
               <Text style={styles.selectorText}>{selectedPark?.name ?? 'Select a park'}</Text>
               <Text style={styles.selectorIcon}>{'▾'}</Text>
             </TouchableOpacity>
             {showParkPicker && (
               <View style={styles.dropdown}>
-                <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-                  {sortedParks.map((p) => (
+                <TextInput
+                  style={styles.parkSearchInput}
+                  placeholder="Search parks or states..."
+                  placeholderTextColor={colors.textMuted}
+                  value={parkQuery}
+                  onChangeText={setParkQuery}
+                  autoCorrect={false}
+                />
+                <ScrollView style={{ maxHeight: 240 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                  {filteredParks.length === 0 && (
+                    <Text style={styles.dropdownEmpty}>No parks match “{parkQuery.trim()}”</Text>
+                  )}
+                  {filteredParks.map((p) => (
                     <TouchableOpacity
                       key={p.id}
                       style={styles.dropdownItem}
                       onPress={() => {
                         setSelectedParkId(p.id);
                         setShowParkPicker(false);
+                        setParkQuery('');
                         setDayEntries({});
                         setExpanded((prev) => ({ ...prev, park: false, when: prev.when || !startDate }));
                       }}
@@ -1561,11 +1642,11 @@ export default function LogTripScreen() {
                 placeholder="Amazing views! We saw elk and hiked to the waterfall."
                 placeholderTextColor={colors.textMuted}
                 multiline
-                maxLength={200}
+                maxLength={MAX_NOTES_LENGTH}
                 value={notes}
                 onChangeText={setNotes}
               />
-              <Text style={styles.charCount}>{notes.length}/200</Text>
+              <Text style={styles.charCount}>{notes.length}/{MAX_NOTES_LENGTH}</Text>
             </View>
           </Accordion>
 
@@ -1633,13 +1714,42 @@ export default function LogTripScreen() {
         <View style={styles.daysStepContainer}>
           <View style={styles.daysHeaderRow}>
             <View style={styles.daysHeaderText}>
-              <Text style={styles.daysHeaderTitle}>{selectedPark?.name}</Text>
-              <Text style={styles.daysHeaderSubtitle}>{formatDateRange(startDate, endDate || startDate)}</Text>
+              <Text style={styles.daysHeaderTitle} numberOfLines={1}>{selectedPark?.name}</Text>
+              <Text style={styles.daysHeaderSubtitle}>
+                {formatDateRange(startDate, endDate || startDate)} · {dayCount} {dayCount === 1 ? 'day' : 'days'}
+              </Text>
             </View>
-            <TouchableOpacity onPress={() => setStep('details')} hitSlop={8}>
-              <Text style={styles.editDetailsLink}>Edit trip details</Text>
+            <TouchableOpacity style={styles.editDetailsBtn} onPress={() => setStep('details')} hitSlop={8}>
+              <Text style={styles.editDetailsLink}>Edit details</Text>
             </TouchableOpacity>
           </View>
+
+          {dayCount > 1 && (
+            <ScrollView
+              ref={dayTabsRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.dayTabsScroll}
+              contentContainerStyle={styles.dayTabs}
+            >
+              {dayNumbers.map((n, i) => {
+                const active = i === pageIndex;
+                return (
+                  <TouchableOpacity
+                    key={n}
+                    style={[styles.dayTab, active && styles.dayTabActive]}
+                    onPress={() => goToDay(i)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.dayTabLabel, active && styles.dayTabTextActive]}>Day {n}</Text>
+                    <Text style={[styles.dayTabDate, active && styles.dayTabTextActive]}>
+                      {parseLocalDate(addDays(startDate, i)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
           <ScrollView
             ref={dayScrollRef}
@@ -1654,8 +1764,6 @@ export default function LogTripScreen() {
             {dayNumbers.map((dayNumber) => (
               <DayPage
                 key={dayNumber}
-                dayNumber={dayNumber}
-                dateLabel={parseLocalDate(addDays(startDate, dayNumber - 1)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 mode={mode}
                 units={units}
                 parkTrails={parkTrails}
@@ -1669,14 +1777,6 @@ export default function LogTripScreen() {
               />
             ))}
           </ScrollView>
-
-          {dayCount > 1 && (
-            <View style={styles.dots}>
-              {dayNumbers.map((n, i) => (
-                <View key={n} style={[styles.dot, i === pageIndex && styles.dotActive]} />
-              ))}
-            </View>
-          )}
 
           <PrimaryButton
             label={mode === 'complete' ? 'MARK AS COMPLETED' : mode === 'plan' ? 'SAVE PLAN' : editingTrip ? 'SAVE CHANGES' : 'SAVE TRIP'}
@@ -1740,13 +1840,23 @@ const styles = StyleSheet.create({
   selectorIcon: { fontSize: 16, color: colors.textSecondary },
 
   dropdown: { backgroundColor: colors.surface, borderRadius: radius.lg, marginTop: spacing.xs, ...shadows.md, overflow: 'hidden' },
+  parkSearchInput: {
+    ...typography.body,
+    color: colors.textPrimary,
+    margin: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceWarm,
+  },
+  dropdownEmpty: { ...typography.bodySmall, color: colors.textMuted, padding: spacing.md },
   dropdownItem: { padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider },
   dropdownText: { ...typography.body, color: colors.textPrimary },
   dropdownTextActive: { color: colors.primary, fontFamily: typography.labelBold.fontFamily },
 
 
-  activityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  activityChip: { width: '28%', alignItems: 'center', gap: spacing.xs, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 2, borderColor: colors.border, paddingVertical: spacing.md, ...shadows.sm },
+  activityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  activityChip: { width: '22.5%', alignItems: 'center', gap: 2, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, paddingVertical: spacing.sm, paddingHorizontal: 2 },
   activityChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
   activityLabel: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
   activityLabelActive: { color: colors.textInverse },
@@ -1870,9 +1980,32 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   daysHeaderText: { flex: 1 },
-  daysHeaderTitle: { ...typography.labelBold, color: colors.textPrimary },
+  daysHeaderTitle: { ...typography.h4, color: colors.textPrimary },
   daysHeaderSubtitle: { ...typography.bodySmall, color: colors.textSecondary, marginTop: 2 },
+  editDetailsBtn: {
+    borderWidth: 1.5,
+    borderColor: colors.sage,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
   editDetailsLink: { ...typography.labelSmall, color: colors.sage },
+
+  dayTabsScroll: { flexGrow: 0, marginBottom: spacing.md },
+  dayTabs: { paddingHorizontal: spacing.xl, gap: spacing.sm },
+  dayTab: {
+    width: DAY_TAB_WIDTH,
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  dayTabActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  dayTabLabel: { ...typography.labelSmall, color: colors.textPrimary },
+  dayTabDate: { ...typography.caption, color: colors.textSecondary },
+  dayTabTextActive: { color: colors.textInverse },
 
   dayPager: { flex: 1, width: PAGE_WIDTH, alignSelf: 'center' },
   dayPage: {
@@ -1884,9 +2017,4 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   dayPageContent: { padding: spacing.lg },
-  dayPageTitle: { ...typography.h4, color: colors.textPrimary, marginBottom: spacing.md },
-
-  dots: { flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', paddingVertical: spacing.md },
-  dot: { width: 6, height: 6, borderRadius: radius.full, backgroundColor: colors.border },
-  dotActive: { backgroundColor: colors.primary, width: 18 },
 });
