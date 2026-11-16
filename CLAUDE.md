@@ -84,7 +84,7 @@ docs/
 | `park-view.png` | Park detail sheet |
 | `log-trip-screen.png` | Log a Trip modal |
 | `profile-screen.png` | Home / Profile dashboard |
-| `style-guide.png` | Colors, fonts, button styles, mascot |
+| `style-guide.png` | Colors, fonts, button styles (its bear mascot is outdated — the mascot is now the moose ranger) |
 | `app-motto.png` | Tagline and four core value icons |
 
 ### Color Palette (from style guide)
@@ -115,13 +115,13 @@ brown:    '#8B6340'  // earthy brown — mascot details, outlined icons
 - Center FAB (`+`): forest green circle, larger than tabs, slight elevation
 - Map pins: circular park photo thumbnails with a checkmark badge overlay for visited parks
 - Badges: sticker-style, circular or shield-shaped, illustrated
-- Bear mascot: appears on welcome, profile hero, log-trip header, and empty states
+- Moose ranger mascot: appears on welcome, profile hero, log-trip header, and empty states (art in `src/assets/mascot/`; the reference images still show an older bear — use the moose)
 
 ---
 
 ## Working in This Codebase
 
-All color and typography values must come from `src/theme/` — never hardcode hex values or font names inline. Every screen uses the white background (`colors.background`); deviating from this will break the visual cohesion. The illustrated bear mascot is a first-class UI element, not an afterthought — if a screen feels empty without it, add it.
+All color and typography values must come from `src/theme/` — never hardcode hex values or font names inline. Every screen uses the white background (`colors.background`); deviating from this will break the visual cohesion. The illustrated moose ranger mascot is a first-class UI element, not an afterthought — if a screen feels empty without it, add it.
 
 ---
 
