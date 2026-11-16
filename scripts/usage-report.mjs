@@ -6,7 +6,8 @@
 //   npm run usage:report                # last 8 weeks
 //   npm run usage:report -- --weeks 12
 // Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (see .env.example).
-// Writes docs/usage-reports/usage-YYYY-MM-DD.md (gitignored) and prints it.
+// Writes docs/usage-reports/usage-YYYY-MM-DD.html (themed, open in a browser)
+// and a matching .md (gitignored), and prints the Markdown.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,6 +15,7 @@ import WebSocket from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import { ROOT, extractArrayLiteral } from './lib/content-rows.mjs';
 import { buildUsageStats, renderUsageMarkdown } from './lib/usage-stats.mjs';
+import { renderUsageHtml } from './lib/usage-html.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -35,7 +37,8 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   realtime: { transport: WebSocket },
 });
 
-// Only the columns the aggregation needs — never notes, captions, names or emails.
+// Only the columns the aggregation needs — never trip notes, captions, names or
+// emails. content_reports.note is read because it describes the flagged entry.
 async function fetchAll(table, columns) {
   const pageSize = 1000;
   const rows = [];
@@ -74,7 +77,7 @@ async function main() {
       fetchAll('user_animal_sightings', 'user_id, spotted_at'),
       fetchAll('user_plant_sightings', 'user_id, spotted_at'),
       fetchAll('user_badges', 'user_id, badge_id, earned, earned_date'),
-      fetchAll('content_reports', 'user_id, created_at'),
+      fetchAll('content_reports', 'user_id, entry_type, entry_id, entry_name, park_id, reason, note, status, created_at'),
     ]);
 
   const names = {
@@ -100,12 +103,16 @@ async function main() {
   );
 
   const markdown = renderUsageMarkdown(stats);
+  const mascot = fs.readFileSync(path.join(ROOT, 'src/assets/mascot/mascot-happy.png')).toString('base64');
+  const html = renderUsageHtml(stats, { mascotDataUri: `data:image/png;base64,${mascot}` });
+
   const dir = path.join(ROOT, 'docs/usage-reports');
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `usage-${stats.generatedAt.slice(0, 10)}.md`);
-  fs.writeFileSync(file, markdown);
+  const base = path.join(dir, `usage-${stats.generatedAt.slice(0, 10)}`);
+  fs.writeFileSync(`${base}.md`, markdown);
+  fs.writeFileSync(`${base}.html`, html);
   console.log(markdown);
-  console.log(`\nSaved to ${path.relative(ROOT, file)}`);
+  console.log(`\nSaved ${path.relative(ROOT, base)}.html (open in a browser) and .md`);
 }
 
 main().catch((err) => {

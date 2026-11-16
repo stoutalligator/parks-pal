@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildUsageStats, renderUsageMarkdown, weekStart } from '../scripts/lib/usage-stats.mjs';
+import { renderUsageHtml } from '../scripts/lib/usage-html.mjs';
 
 const now = new Date('2026-11-18T12:00:00Z'); // a Wednesday
 
@@ -78,4 +79,35 @@ test('renders markdown without crashing on an empty database', () => {
   assert.match(md, /# Parks Pal usage — 2026-11-18/);
   assert.match(md, /\*\*0\*\* accounts/);
   assert.match(md, /_None yet._/);
+});
+
+const reports = [
+  { user_id: 'a', entry_type: 'trail', entry_id: 'angels-landing', entry_name: 'Angels Landing', park_id: 'zion', reason: 'closed_or_permit', note: '  Permit   lottery\n now required  ', status: 'new', created_at: '2026-11-17T10:00:00Z' },
+  { user_id: 'b', entry_type: 'trail', entry_id: 'angels-landing', entry_name: 'Angels Landing', park_id: 'zion', reason: 'difficulty', note: null, status: 'new', created_at: '2026-11-12T10:00:00Z' },
+  { user_id: 'b', entry_type: 'animal', entry_id: 'puffin', entry_name: '<script>Puffin</script>', park_id: 'acadia', reason: 'rarity', note: 'x'.repeat(400), status: 'new', created_at: '2026-11-13T10:00:00Z' },
+  { user_id: 'c', entry_type: 'plant', entry_id: 'lupine', entry_name: 'Lupine', park_id: 'zion', reason: 'other', note: 'old', status: 'resolved', created_at: '2025-05-01T10:00:00Z' },
+];
+
+test('flags summarize open reports, priority first, with cleaned notes', () => {
+  const f = buildUsageStats({ ...empty, reports }, { now, weeks: 4, names: { parks: { zion: 'Zion' } } }).flags;
+  assert.equal(f.total, 4);
+  assert.equal(f.open, 3);
+  assert.equal(f.inWindow, 3);
+  assert.equal(f.priorityOpen, 1);
+  assert.equal(f.topEntries[0].name, 'Angels Landing');
+  assert.equal(f.topEntries[0].count, 2);
+  assert.equal(f.topEntries[0].priority, true);
+  assert.equal(f.recent[0].note, 'Permit lottery now required');
+  assert.equal(f.recent[0].park, 'Zion');
+  assert.equal(f.recent[1].note.length, 300);
+  assert.ok(!f.recent.some((r) => 'user_id' in r));
+});
+
+test('HTML escapes user-typed text and renders with and without flags', () => {
+  const html = renderUsageHtml(buildUsageStats({ ...fixture, reports }, { now, weeks: 4 }));
+  assert.ok(!html.includes('<script>Puffin'));
+  assert.match(html, /&lt;script&gt;Puffin/);
+  assert.match(html, /What people flagged/);
+  assert.match(renderUsageHtml(buildUsageStats(empty, { now, weeks: 8 })), /Nothing open right now/);
+  assert.match(renderUsageMarkdown(buildUsageStats({ ...empty, reports }, { now, weeks: 4 })), /Most-flagged entries/);
 });
