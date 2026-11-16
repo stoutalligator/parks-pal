@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Parks Pal – National Park Tracker for iPhone</title>
+<meta name="description" content="Track every U.S. national park you visit. Watch your map fill in, plan with park and trail guides, and keep your trips as postcards, photos and badges. Free on the App Store.">
+<link rel="canonical" href="https://parks-pal.com/app">
+<meta name="apple-itunes-app" content="app-id=6812453198">
+<meta name="theme-color" content="#A8C5D4">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Parks Pal">
+<meta property="og:url" content="https://parks-pal.com/app">
+<meta property="og:title" content="Parks Pal – National Park Tracker">
+<meta property="og:description" content="Collect memories. Explore more. Track every national park you visit, free on iPhone.">
+<meta property="og:image" content="https://parks-pal.com/app/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Parks Pal moose ranger reading a trail map beside a mountain lake.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Parks Pal – National Park Tracker">
+<meta name="twitter:description" content="Collect memories. Explore more. Track every national park you visit, free on iPhone.">
+<meta name="twitter:image" content="https://parks-pal.com/app/img/og.jpg">
+<meta name="twitter:image:alt" content="The Parks Pal moose ranger reading a trail map beside a mountain lake.">
+
+<link rel="icon" type="image/png" href="/app/img/favicon.png">
+<link rel="apple-touch-icon" href="/app/img/apple-touch-icon.png">
+<link rel="preload" as="image" href="/app/img/moose-scene-720.webp" imagesrcset="/app/img/moose-scene-720.webp 720w, /app/img/moose-scene-1024.webp 1024w" imagesizes="(min-width: 960px) 420px, 100vw">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap">
+
+<script>
+  (function () {
+    var ua = navigator.userAgent || '';
+    var p = 'desktop';
+    if (/android/i.test(ua)) p = 'android';
+    else if (/iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) p = 'ios';
+    else if (/mobi|tablet|silk|kindle/i.test(ua)) p = 'other-mobile';
+    document.documentElement.setAttribute('data-platform', p);
+  })();
+</script>
+
+<style>
+  :root {
+    --primary: #2D5016;
+    --primary-light: #3D6B20;
+    --primary-tint: #EEF3E8;
+    --sage: #6B8C5A;
+    --sky: #A8C5D4;
+    --sky-tint: #EEF4F7;
+    --cream: #EAD9B7;
+    --tan: #C9A96E;
+    --orange: #D4845A;
+    --orange-dark: #A35A33;
+    --rose: #C4847A;
+    --brown: #8B6340;
+    --brown-dark: #5C4028;
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-warm: #FAF7F2;
+    --text-primary: #1C2B13;
+    --text-secondary: #5A6B4E;
+    --text-muted: #9BA88D;
+    --text-inverse: #FFFFFF;
+    --border: #E2DAD0;
+    --divider: #EDE8E0;
+    --accent: #2D5016;
+    --sky-ink: #2F5A6E;
+    --rose-tint: #F7ECE9;
+    --rose-ink: #8E4F45;
+    --shadow-md: 0 2px 8px rgba(28, 43, 19, 0.10);
+    --shadow-lg: 0 4px 16px rgba(28, 43, 19, 0.12);
+    --font-heading: 'Fredoka One', 'Fredoka', system-ui, sans-serif;
+    --font-body: 'Nunito', system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1B1811; --surface: #242019; --surface-warm: #2A251B;
+      --text-primary: #F3EEE2; --text-secondary: #C7BFAB; --text-muted: #8E8672;
+      --border: #38321F; --divider: #2F2A1E; --primary-tint: #26301C; --sky-tint: #1F2A2E;
+      --accent: #9FC17E; --brown-dark: #D9C29A; --sky-ink: #A8C5D4; --rose-tint: #3A2622; --rose-ink: #E0A89E;
+      --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35); --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1B1811; --surface: #242019; --surface-warm: #2A251B;
+    --text-primary: #F3EEE2; --text-secondary: #C7BFAB; --text-muted: #8E8672;
+    --border: #38321F; --divider: #2F2A1E; --primary-tint: #26301C; --sky-tint: #1F2A2E;
+    --accent: #9FC17E; --brown-dark: #D9C29A; --sky-ink: #A8C5D4; --rose-tint: #3A2622; --rose-ink: #E0A89E;
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35); --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { display: block; max-width: 100%; height: auto; }
+  a { color: inherit; }
+  h1, h2, h3 { font-family: var(--font-heading); font-weight: 400; margin: 0; line-height: 1.15; }
+  .wrap { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+  /* ---------- Hero (mirrors the app's welcome screen) ---------- */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100svh;
+    max-height: 940px;
+    overflow: hidden;
+    background: var(--sky);
+    color: #5C4028;
+  }
+  .hero-scene { position: absolute; inset: 0; }
+  .hero-scene img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 62%; }
+  .hero-scene::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(238, 244, 247, 0.55) 0%, rgba(238, 244, 247, 0) 38%, rgba(28, 43, 19, 0) 72%, rgba(28, 43, 19, 0.28) 100%);
+  }
+  .hero-inner {
+    position: relative;
+    min-height: inherit;
+    max-height: inherit;
+    height: 100svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: calc(40px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));
+    text-align: center;
+  }
+  .hero-copy, .hero-cta { position: relative; }
+  .hero-copy { display: flex; flex-direction: column; align-items: center; }
+  .wordmark { font-weight: 700; font-size: 15px; letter-spacing: 3px; margin: 0 0 8px; }
+  .eyebrow { font-family: var(--font-heading); font-size: 19px; letter-spacing: 2px; line-height: 1.1; }
+  .title { font-family: var(--font-heading); font-size: 50px; letter-spacing: 1px; line-height: 1.05; }
+  .title-group { margin: 0 0 8px; }
+  .title-group span { display: block; }
+  .subtitle { font-size: 18px; color: #8B6340; font-weight: 600; margin: 0; line-height: 1.4; }
+  .heart { width: 22px; height: auto; margin-top: 8px; }
+  .hero-cta { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .cta-note {
+    margin: 0;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    color: #FFFFFF;
+    text-shadow: 0 1px 3px rgba(28, 43, 19, 0.6);
+  }
+
+  /* App Store button: the app's primary pill button */
+  .store-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 340px;
+    min-height: 64px;
+    padding: 10px 28px;
+    border-radius: 999px;
+    border: 2px solid #5C4028;
+    background: #2D5016;
+    color: #FFFFFF;
+    text-decoration: none;
+    box-shadow: 0 4px 16px rgba(28, 43, 19, 0.25);
+    transition: transform 0.12s ease, background 0.12s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .store-btn:hover { background: #3D6B20; }
+  .store-btn:active { transform: scale(0.97); }
+  .store-btn:focus-visible { outline: 3px solid #A8C5D4; outline-offset: 3px; }
+  .store-btn svg { width: 28px; height: 28px; flex: none; fill: currentColor; }
+  .store-btn .lines { display: flex; flex-direction: column; align-items: flex-start; text-align: left; line-height: 1.1; }
+  .store-btn small { font-size: 12px; font-weight: 600; letter-spacing: 0.3px; opacity: 0.9; }
+  .store-btn strong { font-family: var(--font-heading); font-weight: 400; font-size: 23px; letter-spacing: 0.3px; }
+
+  /* Android notice */
+  .android-note {
+    display: none;
+    width: 100%;
+    max-width: 340px;
+    padding: 14px 20px;
+    border-radius: 20px;
+    border: 2px solid #5C4028;
+    background: #FAF7F2;
+    color: #5C4028;
+    box-shadow: 0 4px 16px rgba(28, 43, 19, 0.2);
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+  }
+  .android-note img { width: 48px; height: auto; flex: none; }
+  .android-note strong { display: block; font-family: var(--font-heading); font-weight: 400; font-size: 20px; line-height: 1.15; }
+  .android-note span { font-size: 14px; color: #8B6340; }
+  .iphone-link {
+    display: none;
+    font-weight: 700;
+    font-size: 14px;
+    color: #FFFFFF;
+    text-shadow: 0 1px 3px rgba(28, 43, 19, 0.6);
+  }
+  [data-platform="android"] .android-note { display: flex; }
+  [data-platform="android"] .iphone-link { display: inline-block; }
+  [data-platform="android"] .hero .store-btn,
+  [data-platform="android"] .hero .cta-note { display: none; }
+
+  /* Desktop: scan-to-phone card */
+  .phone-card {
+    display: none;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 20px;
+    background: #FFFFFF;
+    color: #1C2B13;
+    border: 2px solid #5C4028;
+    box-shadow: 0 4px 16px rgba(28, 43, 19, 0.15);
+    text-align: left;
+    max-width: 380px;
+  }
+  .phone-card .qr { width: 104px; height: 104px; flex: none; color: #1C2B13; background: #FFFFFF; }
+  .phone-card strong { display: block; font-family: var(--font-heading); font-weight: 400; font-size: 20px; color: #2D5016; line-height: 1.15; margin-bottom: 4px; }
+  .phone-card p { margin: 0; font-size: 14px; color: #5A6B4E; }
+  [data-platform="desktop"] .phone-card { display: flex; }
+
+  /* ---------- Trust strip ---------- */
+  .trust {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 20px;
+    margin: 0;
+    padding: 16px;
+    list-style: none;
+    background: var(--surface-warm);
+    border-bottom: 1px solid var(--divider);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  .trust li { display: inline-flex; align-items: center; gap: 6px; }
+  .trust svg { width: 18px; height: 18px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* ---------- Features ---------- */
+  .features { padding: 48px 0 16px; }
+  .section-head { text-align: center; max-width: 520px; margin: 0 auto 32px; }
+  .motto { font-weight: 700; font-size: 13px; letter-spacing: 2.5px; color: var(--sage); margin: 0 0 8px; }
+  .section-head h2 { font-size: 30px; color: var(--accent); }
+  .feature-list { display: grid; gap: 24px; }
+  .feature {
+    background: var(--surface);
+    border-radius: 24px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--divider);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .feature-art { position: relative; background: var(--surface-warm); }
+  .feature-body { padding: 20px 20px 24px; }
+  .tag {
+    display: inline-block;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .tag-collect { background: var(--primary-tint); color: var(--accent); }
+  .tag-explore { background: var(--sky-tint); color: var(--sky-ink); }
+  .tag-remember { background: var(--rose-tint); color: var(--rose-ink); }
+  .feature h3 { font-size: 24px; margin-bottom: 8px; }
+  .feature p { margin: 0 0 12px; color: var(--text-secondary); }
+  .ticks { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .ticks li { position: relative; padding-left: 28px; font-weight: 600; }
+  .ticks li::before {
+    content: '';
+    position: absolute; left: 0; top: 3px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFFFFF' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 12px no-repeat;
+  }
+
+  /* Collect art: map + pins + postcard */
+  .map-art { aspect-ratio: 720 / 703; background: #F3EBD9; }
+  .map-art > img.map { width: 100%; height: 100%; object-fit: cover; }
+  .pin { position: absolute; width: 13%; transform: translate(-50%, -50%); }
+  .pin img { width: 100%; border-radius: 50%; border: 2px solid #FFFFFF; box-shadow: 0 2px 6px rgba(28, 43, 19, 0.3); }
+  .pin.todo img { filter: grayscale(1) opacity(0.7); }
+  .pin.done::after {
+    content: '';
+    position: absolute; right: -6%; bottom: -6%;
+    width: 42%; aspect-ratio: 1; border-radius: 50%;
+    border: 2px solid #FFFFFF;
+    background: #2D5016 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFFFFF' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 70% no-repeat;
+  }
+  .progress-chip {
+    position: absolute; right: 12px; top: 12px;
+    background: #FFFFFF; color: #2D5016;
+    border-radius: 999px; padding: 6px 12px;
+    font-weight: 700; font-size: 13px;
+    box-shadow: 0 2px 8px rgba(28, 43, 19, 0.15);
+  }
+  .postcard {
+    position: absolute; right: 10px; bottom: 10px;
+    width: 46%;
+    padding: 8px;
+    background: #FAF7F2;
+    border: 1px solid #EAD9B7;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(28, 43, 19, 0.25);
+    transform: rotate(-4deg);
+    color: #5C4028;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .postcard img { width: 44%; border-radius: 6px; }
+  .postcard div { font-size: 11px; line-height: 1.25; font-weight: 600; }
+  .postcard b { display: block; font-family: var(--font-heading); font-weight: 400; font-size: 15px; color: #2D5016; }
+
+  /* Explore art: guide card mock */
+  .explore-art {
+    padding: 20px;
+    background: linear-gradient(160deg, #EEF4F7 0%, #EEF3E8 100%);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .mini-card {
+    background: #FFFFFF;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(28, 43, 19, 0.12);
+    padding: 12px 14px;
+    color: #1C2B13;
+  }
+  .guide-head { display: flex; align-items: center; gap: 12px; }
+  .guide-head img { width: 48px; border-radius: 50%; }
+  .guide-head b { display: block; font-family: var(--font-heading); font-weight: 400; font-size: 18px; color: #2D5016; line-height: 1.1; }
+  .guide-head span { font-size: 13px; color: #5A6B4E; }
+  .day-plan { display: grid; gap: 6px; margin-top: 10px; font-size: 13px; font-weight: 600; color: #5A6B4E; }
+  .day-plan div { display: flex; gap: 8px; align-items: center; }
+  .day-plan i { font-style: normal; font-weight: 700; font-size: 11px; color: #A35A33; background: #FBEFE8; border-radius: 999px; padding: 2px 8px; min-width: 72px; text-align: center; }
+  .elev-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #5A6B4E; margin-bottom: 4px; }
+  .elev { width: 100%; height: 64px; display: block; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #EEF3E8; color: #2D5016; }
+  .chip.sky { background: #EEF4F7; color: #2F5A6E; }
+  .chip.orange { background: #FBEFE8; color: #A35A33; }
+
+  /* Remember art: badge stickers */
+  .badge-art {
+    padding: 24px 16px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    justify-items: center;
+    background: var(--surface-warm);
+  }
+  .badge-art img { width: 100%; max-width: 76px; filter: drop-shadow(0 2px 3px rgba(28, 43, 19, 0.2)); }
+  .badge-art img:nth-child(odd) { transform: rotate(-5deg); }
+  .badge-art img:nth-child(even) { transform: rotate(4deg); }
+  .secret-badge {
+    width: 100%; max-width: 76px; aspect-ratio: 1;
+    border-radius: 50%;
+    border: 3px dashed var(--tan);
+    display: grid; place-items: center;
+    font-family: var(--font-heading); font-size: 30px; color: var(--tan);
+  }
+  .recap {
+    grid-column: 1 / -1;
+    width: 100%;
+    display: flex; align-items: center; gap: 12px;
+    background: #FFFFFF;
+    color: #1C2B13;
+    border-radius: 16px;
+    padding: 10px 14px;
+    box-shadow: 0 2px 8px rgba(28, 43, 19, 0.12);
+    font-size: 13px; font-weight: 600;
+  }
+  .recap img { width: 44px; transform: none !important; filter: none; }
+  .recap b { display: block; font-family: var(--font-heading); font-weight: 400; font-size: 16px; color: #2D5016; }
+  .recap span { color: #5A6B4E; }
+
+  /* ---------- Closing CTA ---------- */
+  .closer { padding: 40px 0 48px; }
+  .closer-card {
+    position: relative;
+    background: var(--primary-tint);
+    border-radius: 24px;
+    padding: 28px 20px;
+    display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px;
+    overflow: hidden;
+  }
+  .closer-card img.mascot { width: 120px; height: auto; }
+  .closer-card h2 { font-size: 28px; color: var(--accent); }
+  .closer-card p { margin: 0; color: var(--text-secondary); }
+  .closer-card .android-note { margin-top: 4px; }
+  [data-platform="android"] .closer-card .store-btn { display: none; }
+
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 1px solid var(--divider);
+    padding: 28px 16px calc(32px + env(safe-area-inset-bottom));
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .foot-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text-primary); font-family: var(--font-heading); font-size: 20px; margin-bottom: 8px; }
+  .foot-brand img { width: 36px; border-radius: 9px; }
+  .foot-links { display: flex; justify-content: center; gap: 4px; margin: 12px 0; flex-wrap: wrap; }
+  .foot-links a { color: var(--text-secondary); font-weight: 700; text-decoration: none; padding: 8px 12px; border-radius: 999px; }
+  .foot-links a:hover { background: var(--surface-warm); color: var(--accent); }
+  footer p { margin: 0; }
+
+  /* ---------- Wider screens ---------- */
+  @media (min-width: 640px) {
+    .feature-list { grid-template-columns: 1fr 1fr; }
+    .feature:first-child { grid-column: 1 / -1; flex-direction: row; }
+    .feature:first-child .feature-art { flex: 1.1; }
+    .feature:first-child .feature-body { flex: 1; align-self: center; padding: 28px; }
+  }
+  @media (min-width: 960px) {
+    .hero { min-height: 0; max-height: none; background: linear-gradient(180deg, #EEF4F7 0%, #FAF7F2 100%); }
+    .hero-scene::after { display: none; }
+    .hero-inner {
+      height: auto;
+      max-width: 1080px; margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      align-items: center;
+      gap: 48px;
+      padding: 56px 16px;
+      text-align: left;
+    }
+    .hero-scene {
+      position: relative; inset: auto;
+      grid-column: 2; grid-row: 1 / span 2;
+      border-radius: 32px; overflow: hidden;
+      aspect-ratio: 1024 / 1300;
+      border: 3px solid #5C4028;
+      box-shadow: 0 12px 40px rgba(28, 43, 19, 0.2);
+    }
+    .hero-copy { grid-column: 1; grid-row: 1; align-items: flex-start; align-self: end; }
+    .hero-cta { grid-column: 1; grid-row: 2; align-items: flex-start; align-self: start; }
+    .title { font-size: 72px; }
+    .eyebrow { font-size: 26px; }
+    .subtitle { font-size: 22px; }
+    .cta-note, .iphone-link { color: #5A6B4E; text-shadow: none; }
+    .closer-card { flex-direction: row; text-align: left; padding: 32px 40px; }
+    .closer-card > div { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+    .feature-list { grid-template-columns: repeat(3, 1fr); }
+    .feature:first-child { grid-column: auto; flex-direction: column; }
+    .feature:first-child .feature-art { flex: none; }
+    .feature:first-child .feature-body { padding: 20px 20px 24px; align-self: auto; }
+  }
+  @media (max-height: 640px) and (max-width: 959px) {
+    .hero-inner { padding-top: calc(24px + env(safe-area-inset-top)); padding-bottom: 20px; }
+    .title { font-size: 42px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .store-btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-scene">
+      <img src="/app/img/moose-scene-720.webp"
+           srcset="/app/img/moose-scene-720.webp 720w, /app/img/moose-scene-1024.webp 1024w"
+           sizes="(min-width: 960px) 420px, 100vw"
+           width="720" height="1080"
+           alt="The Parks Pal moose ranger, in a ranger hat and backpack, reading a trail map beside a mountain lake."
+           fetchpriority="high">
+    </div>
+    <div class="hero-copy">
+      <p class="wordmark">PARKS PAL</p>
+      <h1 class="title-group">
+        <span class="eyebrow">NATIONAL PARK</span>
+        <span class="title">TRACKER</span>
+      </h1>
+      <p class="subtitle">Collect memories.<br>Explore more.</p>
+      <img class="heart" src="/app/img/heart.webp" width="37" height="33" alt="">
+    </div>
+
+    <div class="hero-cta">
+      <a class="store-btn" href="https://apps.apple.com/us/app/parks-pal-park-tracker/id6812453198">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
+        <span class="lines"><small>Download on the</small><strong>App Store</strong></span>
+      </a>
+      <p class="cta-note">Free · for iPhone</p>
+
+      <div class="android-note" role="note">
+        <img src="/app/img/mascot-excited.webp" width="95" height="114" alt="">
+        <div><strong>Coming soon to Android</strong><span>Parks Pal is iPhone-only for now. We're working on it!</span></div>
+      </div>
+      <a class="iphone-link" href="https://apps.apple.com/us/app/parks-pal-park-tracker/id6812453198">Have an iPhone? Get it on the App Store →</a>
+
+      <div class="phone-card">
+        <svg class="qr" viewBox="0 0 37 37" role="img" aria-label="QR code that opens Parks Pal on the App Store" shape-rendering="crispEdges"><path fill="currentColor" d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM8 0h1v1h-1zM9 0h1v1h-1zM14 0h1v1h-1zM16 0h1v1h-1zM18 0h1v1h-1zM19 0h1v1h-1zM21 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM25 0h1v1h-1zM28 0h1v1h-1zM30 0h1v1h-1zM31 0h1v1h-1zM32 0h1v1h-1zM33 0h1v1h-1zM34 0h1v1h-1zM35 0h1v1h-1zM36 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM11 1h1v1h-1zM13 1h1v1h-1zM16 1h1v1h-1zM17 1h1v1h-1zM19 1h1v1h-1zM21 1h1v1h-1zM24 1h1v1h-1zM28 1h1v1h-1zM30 1h1v1h-1zM36 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM12 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM21 2h1v1h-1zM23 2h1v1h-1zM24 2h1v1h-1zM25 2h1v1h-1zM26 2h1v1h-1zM27 2h1v1h-1zM28 2h1v1h-1zM30 2h1v1h-1zM32 2h1v1h-1zM33 2h1v1h-1zM34 2h1v1h-1zM36 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM12 3h1v1h-1zM14 3h1v1h-1zM17 3h1v1h-1zM18 3h1v1h-1zM19 3h1v1h-1zM21 3h1v1h-1zM24 3h1v1h-1zM25 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM30 3h1v1h-1zM32 3h1v1h-1zM33 3h1v1h-1zM34 3h1v1h-1zM36 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM12 4h1v1h-1zM14 4h1v1h-1zM15 4h1v1h-1zM17 4h1v1h-1zM22 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM30 4h1v1h-1zM32 4h1v1h-1zM33 4h1v1h-1zM34 4h1v1h-1zM36 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM16 5h1v1h-1zM21 5h1v1h-1zM22 5h1v1h-1zM24 5h1v1h-1zM25 5h1v1h-1zM30 5h1v1h-1zM36 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM24 6h1v1h-1zM26 6h1v1h-1zM28 6h1v1h-1zM30 6h1v1h-1zM31 6h1v1h-1zM32 6h1v1h-1zM33 6h1v1h-1zM34 6h1v1h-1zM35 6h1v1h-1zM36 6h1v1h-1zM10 7h1v1h-1zM12 7h1v1h-1zM14 7h1v1h-1zM18 7h1v1h-1zM19 7h1v1h-1zM21 7h1v1h-1zM24 7h1v1h-1zM0 8h1v1h-1zM2 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM12 8h1v1h-1zM13 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM17 8h1v1h-1zM18 8h1v1h-1zM19 8h1v1h-1zM21 8h1v1h-1zM23 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM27 8h1v1h-1zM31 8h1v1h-1zM34 8h1v1h-1zM36 8h1v1h-1zM2 9h1v1h-1zM5 9h1v1h-1zM10 9h1v1h-1zM13 9h1v1h-1zM14 9h1v1h-1zM16 9h1v1h-1zM18 9h1v1h-1zM21 9h1v1h-1zM24 9h1v1h-1zM25 9h1v1h-1zM26 9h1v1h-1zM27 9h1v1h-1zM29 9h1v1h-1zM30 9h1v1h-1zM31 9h1v1h-1zM33 9h1v1h-1zM34 9h1v1h-1zM35 9h1v1h-1zM36 9h1v1h-1zM0 10h1v1h-1zM1 10h1v1h-1zM4 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM10 10h1v1h-1zM12 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM24 10h1v1h-1zM25 10h1v1h-1zM27 10h1v1h-1zM28 10h1v1h-1zM29 10h1v1h-1zM30 10h1v1h-1zM32 10h1v1h-1zM34 10h1v1h-1zM36 10h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM11 11h1v1h-1zM12 11h1v1h-1zM13 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM18 11h1v1h-1zM22 11h1v1h-1zM23 11h1v1h-1zM24 11h1v1h-1zM29 11h1v1h-1zM31 11h1v1h-1zM33 11h1v1h-1zM1 12h1v1h-1zM3 12h1v1h-1zM4 12h1v1h-1zM5 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM8 12h1v1h-1zM13 12h1v1h-1zM14 12h1v1h-1zM16 12h1v1h-1zM18 12h1v1h-1zM19 12h1v1h-1zM30 12h1v1h-1zM31 12h1v1h-1zM36 12h1v1h-1zM0 13h1v1h-1zM7 13h1v1h-1zM10 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM15 13h1v1h-1zM16 13h1v1h-1zM17 13h1v1h-1zM19 13h1v1h-1zM20 13h1v1h-1zM23 13h1v1h-1zM24 13h1v1h-1zM27 13h1v1h-1zM28 13h1v1h-1zM29 13h1v1h-1zM30 13h1v1h-1zM31 13h1v1h-1zM33 13h1v1h-1zM36 13h1v1h-1zM1 14h1v1h-1zM4 14h1v1h-1zM5 14h1v1h-1zM6 14h1v1h-1zM8 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM12 14h1v1h-1zM15 14h1v1h-1zM16 14h1v1h-1zM19 14h1v1h-1zM21 14h1v1h-1zM22 14h1v1h-1zM23 14h1v1h-1zM25 14h1v1h-1zM27 14h1v1h-1zM29 14h1v1h-1zM30 14h1v1h-1zM33 14h1v1h-1zM34 14h1v1h-1zM35 14h1v1h-1zM36 14h1v1h-1zM2 15h1v1h-1zM3 15h1v1h-1zM4 15h1v1h-1zM7 15h1v1h-1zM10 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM17 15h1v1h-1zM22 15h1v1h-1zM23 15h1v1h-1zM24 15h1v1h-1zM30 15h1v1h-1zM31 15h1v1h-1zM32 15h1v1h-1zM33 15h1v1h-1zM35 15h1v1h-1zM36 15h1v1h-1zM3 16h1v1h-1zM4 16h1v1h-1zM6 16h1v1h-1zM9 16h1v1h-1zM14 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM19 16h1v1h-1zM20 16h1v1h-1zM21 16h1v1h-1zM22 16h1v1h-1zM24 16h1v1h-1zM26 16h1v1h-1zM27 16h1v1h-1zM29 16h1v1h-1zM30 16h1v1h-1zM31 16h1v1h-1zM35 16h1v1h-1zM1 17h1v1h-1zM2 17h1v1h-1zM3 17h1v1h-1zM4 17h1v1h-1zM8 17h1v1h-1zM9 17h1v1h-1zM14 17h1v1h-1zM17 17h1v1h-1zM20 17h1v1h-1zM22 17h1v1h-1zM26 17h1v1h-1zM27 17h1v1h-1zM30 17h1v1h-1zM31 17h1v1h-1zM33 17h1v1h-1zM35 17h1v1h-1zM36 17h1v1h-1zM1 18h1v1h-1zM2 18h1v1h-1zM6 18h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM12 18h1v1h-1zM15 18h1v1h-1zM17 18h1v1h-1zM20 18h1v1h-1zM21 18h1v1h-1zM22 18h1v1h-1zM23 18h1v1h-1zM24 18h1v1h-1zM25 18h1v1h-1zM27 18h1v1h-1zM28 18h1v1h-1zM29 18h1v1h-1zM30 18h1v1h-1zM33 18h1v1h-1zM34 18h1v1h-1zM36 18h1v1h-1zM5 19h1v1h-1zM9 19h1v1h-1zM10 19h1v1h-1zM11 19h1v1h-1zM14 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM22 19h1v1h-1zM26 19h1v1h-1zM27 19h1v1h-1zM28 19h1v1h-1zM32 19h1v1h-1zM33 19h1v1h-1zM2 20h1v1h-1zM3 20h1v1h-1zM5 20h1v1h-1zM6 20h1v1h-1zM7 20h1v1h-1zM9 20h1v1h-1zM11 20h1v1h-1zM13 20h1v1h-1zM14 20h1v1h-1zM15 20h1v1h-1zM20 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM27 20h1v1h-1zM28 20h1v1h-1zM30 20h1v1h-1zM31 20h1v1h-1zM35 20h1v1h-1zM1 21h1v1h-1zM3 21h1v1h-1zM5 21h1v1h-1zM8 21h1v1h-1zM10 21h1v1h-1zM12 21h1v1h-1zM13 21h1v1h-1zM15 21h1v1h-1zM16 21h1v1h-1zM18 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM21 21h1v1h-1zM22 21h1v1h-1zM23 21h1v1h-1zM27 21h1v1h-1zM28 21h1v1h-1zM29 21h1v1h-1zM30 21h1v1h-1zM36 21h1v1h-1zM0 22h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM7 22h1v1h-1zM8 22h1v1h-1zM9 22h1v1h-1zM12 22h1v1h-1zM13 22h1v1h-1zM14 22h1v1h-1zM15 22h1v1h-1zM17 22h1v1h-1zM18 22h1v1h-1zM19 22h1v1h-1zM20 22h1v1h-1zM23 22h1v1h-1zM25 22h1v1h-1zM27 22h1v1h-1zM28 22h1v1h-1zM33 22h1v1h-1zM34 22h1v1h-1zM36 22h1v1h-1zM9 23h1v1h-1zM10 23h1v1h-1zM11 23h1v1h-1zM13 23h1v1h-1zM16 23h1v1h-1zM18 23h1v1h-1zM21 23h1v1h-1zM24 23h1v1h-1zM26 23h1v1h-1zM27 23h1v1h-1zM28 23h1v1h-1zM29 23h1v1h-1zM30 23h1v1h-1zM31 23h1v1h-1zM32 23h1v1h-1zM33 23h1v1h-1zM36 23h1v1h-1zM0 24h1v1h-1zM1 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM9 24h1v1h-1zM11 24h1v1h-1zM13 24h1v1h-1zM16 24h1v1h-1zM17 24h1v1h-1zM18 24h1v1h-1zM19 24h1v1h-1zM21 24h1v1h-1zM26 24h1v1h-1zM30 24h1v1h-1zM31 24h1v1h-1zM35 24h1v1h-1zM36 24h1v1h-1zM1 25h1v1h-1zM2 25h1v1h-1zM3 25h1v1h-1zM8 25h1v1h-1zM9 25h1v1h-1zM10 25h1v1h-1zM14 25h1v1h-1zM16 25h1v1h-1zM18 25h1v1h-1zM23 25h1v1h-1zM25 25h1v1h-1zM26 25h1v1h-1zM27 25h1v1h-1zM30 25h1v1h-1zM31 25h1v1h-1zM36 25h1v1h-1zM0 26h1v1h-1zM1 26h1v1h-1zM3 26h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM7 26h1v1h-1zM11 26h1v1h-1zM12 26h1v1h-1zM16 26h1v1h-1zM17 26h1v1h-1zM18 26h1v1h-1zM19 26h1v1h-1zM21 26h1v1h-1zM22 26h1v1h-1zM23 26h1v1h-1zM27 26h1v1h-1zM28 26h1v1h-1zM29 26h1v1h-1zM30 26h1v1h-1zM33 26h1v1h-1zM36 26h1v1h-1zM3 27h1v1h-1zM5 27h1v1h-1zM7 27h1v1h-1zM8 27h1v1h-1zM9 27h1v1h-1zM10 27h1v1h-1zM15 27h1v1h-1zM16 27h1v1h-1zM28 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM0 28h1v1h-1zM1 28h1v1h-1zM2 28h1v1h-1zM6 28h1v1h-1zM8 28h1v1h-1zM9 28h1v1h-1zM11 28h1v1h-1zM12 28h1v1h-1zM13 28h1v1h-1zM14 28h1v1h-1zM16 28h1v1h-1zM19 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM28 28h1v1h-1zM29 28h1v1h-1zM30 28h1v1h-1zM31 28h1v1h-1zM32 28h1v1h-1zM33 28h1v1h-1zM35 28h1v1h-1zM36 28h1v1h-1zM8 29h1v1h-1zM9 29h1v1h-1zM10 29h1v1h-1zM11 29h1v1h-1zM14 29h1v1h-1zM15 29h1v1h-1zM17 29h1v1h-1zM19 29h1v1h-1zM20 29h1v1h-1zM22 29h1v1h-1zM23 29h1v1h-1zM24 29h1v1h-1zM28 29h1v1h-1zM32 29h1v1h-1zM35 29h1v1h-1zM36 29h1v1h-1zM0 30h1v1h-1zM1 30h1v1h-1zM2 30h1v1h-1zM3 30h1v1h-1zM4 30h1v1h-1zM5 30h1v1h-1zM6 30h1v1h-1zM8 30h1v1h-1zM9 30h1v1h-1zM10 30h1v1h-1zM11 30h1v1h-1zM13 30h1v1h-1zM15 30h1v1h-1zM16 30h1v1h-1zM19 30h1v1h-1zM21 30h1v1h-1zM22 30h1v1h-1zM23 30h1v1h-1zM26 30h1v1h-1zM28 30h1v1h-1zM30 30h1v1h-1zM32 30h1v1h-1zM36 30h1v1h-1zM0 31h1v1h-1zM6 31h1v1h-1zM10 31h1v1h-1zM13 31h1v1h-1zM14 31h1v1h-1zM16 31h1v1h-1zM17 31h1v1h-1zM19 31h1v1h-1zM20 31h1v1h-1zM22 31h1v1h-1zM23 31h1v1h-1zM24 31h1v1h-1zM26 31h1v1h-1zM28 31h1v1h-1zM32 31h1v1h-1zM35 31h1v1h-1zM0 32h1v1h-1zM2 32h1v1h-1zM3 32h1v1h-1zM4 32h1v1h-1zM6 32h1v1h-1zM9 32h1v1h-1zM11 32h1v1h-1zM12 32h1v1h-1zM17 32h1v1h-1zM20 32h1v1h-1zM21 32h1v1h-1zM22 32h1v1h-1zM26 32h1v1h-1zM27 32h1v1h-1zM28 32h1v1h-1zM29 32h1v1h-1zM30 32h1v1h-1zM31 32h1v1h-1zM32 32h1v1h-1zM35 32h1v1h-1zM36 32h1v1h-1zM0 33h1v1h-1zM2 33h1v1h-1zM3 33h1v1h-1zM4 33h1v1h-1zM6 33h1v1h-1zM12 33h1v1h-1zM20 33h1v1h-1zM22 33h1v1h-1zM23 33h1v1h-1zM26 33h1v1h-1zM27 33h1v1h-1zM28 33h1v1h-1zM29 33h1v1h-1zM32 33h1v1h-1zM0 34h1v1h-1zM2 34h1v1h-1zM3 34h1v1h-1zM4 34h1v1h-1zM6 34h1v1h-1zM8 34h1v1h-1zM10 34h1v1h-1zM11 34h1v1h-1zM14 34h1v1h-1zM15 34h1v1h-1zM17 34h1v1h-1zM18 34h1v1h-1zM20 34h1v1h-1zM21 34h1v1h-1zM22 34h1v1h-1zM23 34h1v1h-1zM26 34h1v1h-1zM27 34h1v1h-1zM28 34h1v1h-1zM31 34h1v1h-1zM32 34h1v1h-1zM34 34h1v1h-1zM36 34h1v1h-1zM0 35h1v1h-1zM6 35h1v1h-1zM9 35h1v1h-1zM10 35h1v1h-1zM13 35h1v1h-1zM14 35h1v1h-1zM18 35h1v1h-1zM19 35h1v1h-1zM20 35h1v1h-1zM26 35h1v1h-1zM28 35h1v1h-1zM30 35h1v1h-1zM32 35h1v1h-1zM33 35h1v1h-1zM0 36h1v1h-1zM1 36h1v1h-1zM2 36h1v1h-1zM3 36h1v1h-1zM4 36h1v1h-1zM5 36h1v1h-1zM6 36h1v1h-1zM8 36h1v1h-1zM10 36h1v1h-1zM12 36h1v1h-1zM13 36h1v1h-1zM14 36h1v1h-1zM15 36h1v1h-1zM16 36h1v1h-1zM20 36h1v1h-1zM22 36h1v1h-1zM23 36h1v1h-1zM24 36h1v1h-1zM28 36h1v1h-1zM30 36h1v1h-1zM31 36h1v1h-1zM33 36h1v1h-1zM36 36h1v1h-1z"/></svg>
+        <div><strong>Get it on your phone</strong><p>Point your iPhone camera at the code to open Parks Pal in the App Store.</p></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<ul class="trust" aria-label="At a glance">
+  <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="8" cy="8" r="1.5"/></svg>Free</li>
+  <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 20 6.5-11 4 6.5L16 12l5 8Z"/><path d="M15 6.5a2 2 0 1 0 0-.1"/></svg>Works offline</li>
+  <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6Z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg>No ads or tracking</li>
+</ul>
+
+<main>
+  <section class="features" aria-labelledby="features-title">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="motto">COLLECT. EXPLORE. REMEMBER.</p>
+        <h2 id="features-title">Every park adventure, in your pocket</h2>
+      </div>
+
+      <div class="feature-list">
+        <article class="feature">
+          <div class="feature-art map-art">
+            <img class="map" src="/app/img/us-map.webp" width="720" height="703" loading="lazy" alt="An illustrated map of the United States with park stamps filling in as they are visited.">
+            <span class="progress-chip">5 parks visited</span>
+            <span class="pin done" style="left:34%;top:41%"><img src="/app/img/park-yellowstone.webp" width="112" height="112" loading="lazy" alt=""></span>
+            <span class="pin done" style="left:28%;top:55%"><img src="/app/img/park-zion.webp" width="112" height="112" loading="lazy" alt=""></span>
+            <span class="pin done" style="left:23%;top:65%"><img src="/app/img/park-grand-canyon.webp" width="112" height="112" loading="lazy" alt=""></span>
+            <span class="pin done" style="left:93%;top:35%"><img src="/app/img/park-acadia.webp" width="112" height="112" loading="lazy" alt=""></span>
+            <span class="pin done" style="left:76%;top:58%"><img src="/app/img/park-great-smoky.webp" width="112" height="112" loading="lazy" alt=""></span>
+            <span class="pin todo" style="left:13%;top:52%"><img src="/app/img/park-yosemite.webp" width="112" height="112" loading="lazy" alt=""></span>
+            <span class="pin todo" style="left:17%;top:13%"><img src="/app/img/park-denali.webp" width="112" height="112" loading="lazy" alt=""></span>
+            <div class="postcard" aria-hidden="true">
+              <img src="/app/img/park-zion.webp" width="112" height="112" loading="lazy" alt="">
+              <div><b>Zion</b>Greetings from the canyon!</div>
+            </div>
+          </div>
+          <div class="feature-body">
+            <span class="tag tag-collect">Collect</span>
+            <h3>Watch your map fill in</h3>
+            <p>Every park you visit gets stamped on an illustrated map of the U.S., from Acadia to Denali.</p>
+            <ul class="ticks">
+              <li>Track visited parks and your bucket list</li>
+              <li>Every trip you log becomes a collectible postcard</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div class="feature-art explore-art" aria-hidden="true">
+            <div class="mini-card">
+              <div class="guide-head">
+                <img src="/app/img/park-yosemite.webp" width="112" height="112" loading="lazy" alt="">
+                <div><b>Yosemite</b><span>Park guide</span></div>
+              </div>
+              <div class="day-plan">
+                <div><i>Only a day?</i>Your plan, start to finish</div>
+                <div><i>Wildlife</i>What to look for, and where</div>
+              </div>
+            </div>
+            <div class="mini-card">
+              <div class="elev-label"><span>Trail guide</span><span>Elevation</span></div>
+              <svg class="elev" viewBox="0 0 300 64" preserveAspectRatio="none">
+                <defs><linearGradient id="elevfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6B8C5A" stop-opacity="0.45"/><stop offset="1" stop-color="#6B8C5A" stop-opacity="0.05"/></linearGradient></defs>
+                <path d="M0 58 C30 56 45 50 70 44 S110 30 130 26 S160 12 185 8 S215 16 235 28 S275 50 300 54 L300 64 L0 64Z" fill="url(#elevfill)"/>
+                <path d="M0 58 C30 56 45 50 70 44 S110 30 130 26 S160 12 185 8 S215 16 235 28 S275 50 300 54" fill="none" stroke="#2D5016" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="185" cy="8" r="4" fill="#D4845A"/>
+              </svg>
+              <div class="chips"><span class="chip">Hiking</span><span class="chip sky">Waterfalls</span><span class="chip orange">Views</span></div>
+            </div>
+          </div>
+          <div class="feature-body">
+            <span class="tag tag-explore">Explore</span>
+            <h3>Plan your next adventure</h3>
+            <p>A friendly guide for every park, so you know what to see before you go.</p>
+            <ul class="ticks">
+              <li>Park guides and “Only Have a Day?” plans</li>
+              <li>Trail guides with elevation charts</li>
+              <li>A wildlife guide for each park</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div class="feature-art badge-art">
+            <img src="/app/img/badge-first-park.webp" width="160" height="160" loading="lazy" alt="First Steps badge">
+            <img src="/app/img/badge-half-dome.webp" width="160" height="160" loading="lazy" alt="Cable Climber badge">
+            <img src="/app/img/badge-acadia-puffin.webp" width="160" height="160" loading="lazy" alt="Puffin Pal badge">
+            <img src="/app/img/badge-utah-five.webp" width="160" height="160" loading="lazy" alt="Mighty Five badge">
+            <img src="/app/img/badge-wildlife.webp" width="160" height="160" loading="lazy" alt="Wildlife Spotter badge">
+            <img src="/app/img/badge-parks-10.webp" width="160" height="160" loading="lazy" alt="Trail Seeker badge">
+            <span class="secret-badge" role="img" aria-label="A secret badge">?</span>
+            <span class="secret-badge" role="img" aria-label="A secret badge">?</span>
+            <div class="recap" aria-hidden="true">
+              <img src="/app/img/mascot-happy.webp" width="94" height="114" alt="">
+              <div><b>Day 2 · Grand Canyon</b><span>Sunrise at Mather Point, then down the trail.</span></div>
+            </div>
+          </div>
+          <div class="feature-body">
+            <span class="tag tag-remember">Remember</span>
+            <h3>Keep every trip</h3>
+            <p>Your adventure journal, written one day at a time.</p>
+            <ul class="ticks">
+              <li>Day-by-day trip logs with photos</li>
+              <li>Shareable trip recaps</li>
+              <li>Badges to earn, and a few secret ones to discover</li>
+            </ul>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="closer" aria-labelledby="closer-title">
+    <div class="wrap">
+      <div class="closer-card">
+        <img class="mascot" src="/app/img/mascot-ranger.webp" width="240" height="413" loading="lazy" alt="The Parks Pal moose ranger waving hello.">
+        <div>
+          <h2 id="closer-title">Ready for your next park?</h2>
+          <p>Start your park journal today. It's free, and it works even when the trail has no signal.</p>
+          <a class="store-btn" href="https://apps.apple.com/us/app/parks-pal-park-tracker/id6812453198">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
+            <span class="lines"><small>Download on the</small><strong>App Store</strong></span>
+          </a>
+          <div class="android-note" role="note">
+            <img src="/app/img/mascot-excited.webp" width="95" height="114" alt="">
+            <div><strong>Coming soon to Android</strong><span>iPhone-only for now. Check back soon!</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="foot-brand"><img src="/app/img/app-icon.webp" width="192" height="192" loading="lazy" alt="">Parks Pal</div>
+  <nav class="foot-links" aria-label="Legal and help">
+    <a href="/support">Support</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+  </nav>
+  <p>© 2026 Parks Pal · Collect. Explore. Remember.</p>
+</footer>
+
+</body>
+</html>
