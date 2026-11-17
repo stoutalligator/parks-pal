@@ -176,14 +176,16 @@ Go to App Store Connect → App Privacy → and declare:
 | Contact Info | Name | Yes | Yes | No | App Functionality (profile display name, stored in `profiles.name`) |
 | Contact Info | Email Address | Yes | Yes | No | App Functionality (account login) |
 | User Content | Photos or Videos | Yes | Yes | No | App Functionality (trip photos) |
-| User Content | Other User Content | Yes | Yes | No | App Functionality (trip notes, activities, trail/wildlife logs) |
-| Identifiers | User ID | Yes | Yes | No | App Functionality (account/session) |
+| User Content | Other User Content | Yes | Yes | No | App Functionality (trip notes, activities, trail/wildlife logs); Analytics (aggregate usage report) |
+| Identifiers | User ID | Yes | Yes | No | App Functionality (account/session); Analytics (aggregate usage report) |
 | Diagnostics | Crash Data | Yes | **No** | No | App Functionality (Sentry crash reporting — no email/user ID attached, see note below) |
 | Diagnostics | Performance Data | Yes | **No** | No | App Functionality (Sentry performance tracing, `tracesSampleRate: 0.2`, plus session tracking — same no-identity note) |
 
 Everything else (Location, Financial Info, Health & Fitness, Contacts, Browsing History, Search History, Usage Data, Purchases, Messages) → **not collected**.
 
 "Other User Content" also covers the trail/animal problem reports users can submit (reason + optional note, linked to the account, deleted with it).
+
+**Note on Analytics:** added as a second purpose for Other User Content and User ID (published in App Store Connect, 2026-11-17) because `npm run usage:report` (`scripts/usage-report.mjs`) counts saved trips, logs, badges and flags across accounts to see which features people use. It only produces totals and never ties a number or a flag note to a person, but Apple's Analytics purpose ("evaluate user behavior … understand the effectiveness of existing product features, plan new features") covers it. Using data for Analytics is not "tracking" — nothing leaves Parks Pal.
 
 **Note on Diagnostics / Sentry:** the code never calls `Sentry.setUser()`, so crash reports carry device/OS info but no email or account identifier — that's why Diagnostics is "not linked to identity." If a `setUser` call is ever added later, this answer needs to flip to "linked."
 
@@ -199,6 +201,7 @@ Everything else (Location, Financial Info, Health & Fitness, Contacts, Browsing 
 | Data types collected | Personal info → Name, Email address · Photos and videos → Photos · App activity → App interactions (trip/park data) · App info and performance → Crash logs |
 | Is all collected data encrypted in transit? | Yes (HTTPS/TLS to Supabase) |
 | Do you provide a way for users to request data deletion? | Yes — in-app (Settings → Delete Account), immediate and permanent |
+| Data use purposes (App activity → App interactions) | App functionality · Analytics (aggregate usage report — see the Analytics note in section 3) |
 | Is data shared with third parties? | No |
 | Is data collection optional for any of these types? | No — email is required to create an account; photos are optional (user chooses whether to attach them) |
 

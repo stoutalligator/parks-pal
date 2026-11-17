@@ -16,3 +16,6 @@ yarn-error.*
 .env
 .env.local
 .tmp-screenshots/
+
+# Usage reports contain production stats; keep them local
+docs/usage-reports/
